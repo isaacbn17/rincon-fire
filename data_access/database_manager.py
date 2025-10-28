@@ -39,6 +39,8 @@ class DatabaseManager:
     @staticmethod
     def create_database():
         """Create the database if it doesn't exist"""
+        conn = None
+        cursor = None
         try:
             conn = mysql.connector.connect(
                 host = DatabaseManager.HOST,
@@ -52,9 +54,9 @@ class DatabaseManager:
         except Error as e:
             raise DataAccessException(e)
         finally:
-            if cursor is not None:
+            if cursor:
                 cursor.close()
-            if conn is not None and conn.is_connected():
+            if conn and conn.is_connected():
                 conn.close()
 
 
@@ -72,3 +74,48 @@ class DatabaseManager:
             return conn
         except Error as e:
             raise DataAccessException(e)
+
+
+    @staticmethod
+    def create_tables():
+        """Create necessary tables if they don't exist."""
+        conn = None
+        cursor = None
+        try:
+            conn = DatabaseManager.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS wildfire_location_prediction (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    latitude DOUBLE NOT NULL,
+                    longitude DOUBLE NOT NULL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    model_version VARCHAR(50),
+                    confidence FLOAT,
+                    weather_json JSON
+                )
+            """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS satellite_image (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    prediction_id INT NOT NULL,
+                    image_path VARCHAR(255) NOT NULL,
+                    captured_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (prediction_id)
+                        REFERENCES wildfire_location_prediction(id)
+                        ON DELETE CASCADE
+                )
+            """)
+
+            conn.commit()
+
+        except Error as e:
+            raise DataAccessException(e)
+        finally:
+            if cursor:
+                cursor.close()
+            if conn and conn.is_connected():
+                conn.close()
+
