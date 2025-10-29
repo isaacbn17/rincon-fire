@@ -13,6 +13,27 @@ Data (JSON):
 {context_json}
 """
 
+PROMPT = """You are a wildfire risk analyst. I will provide weather data for you to analyze.
+
+Task:
+1) Return a confidence score from 1 to 1000 indicating the likelihood you believe there would be a wildfire in the given region.
+2) Keep the output short. Your prediction should be formatted as: "Confidence score: "
+
+Data (JSON):
+{weather_json}
+"""
+
+def ask_gemini_without_wildfire_data(api_key: str, weather_json: str) -> str:
+    prompt = PROMPT.format(
+        weather_json=weather_json,
+    )
+    client = genai.Client(api_key=api_key)
+    resp = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+    return getattr(resp, "text", "").strip()
+
 def ask_gemini(api_key: str,
                context_json: str,
                grid_deg: float,

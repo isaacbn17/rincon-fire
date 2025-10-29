@@ -1,4 +1,5 @@
 import argparse
+import ast
 from pathlib import Path
 
 # --- robust imports: work with `python -m src.main` OR `python src/main.py` ---
@@ -7,7 +8,8 @@ try:
     from src.config import load_api_key, DEFAULT_GRID, DEFAULT_LOOKBACK, DEFAULT_TOPN, DEFAULT_OUT
     from src.preprocess import load_and_clean, aggregate_regions
     from src.risk_summarize import to_context_json
-    from src.prompt_gemini import ask_gemini
+    from src.prompt_gemini import ask_gemini, ask_gemini_without_wildfire_data
+    from src.api_helpers import get_station_list, request_observations
 except ModuleNotFoundError:
     # fallback if run directly (or PYTHONPATH not set)
     import sys
@@ -18,6 +20,7 @@ except ModuleNotFoundError:
     from preprocess import load_and_clean, aggregate_regions
     from risk_summarize import to_context_json
     from prompt_gemini import ask_gemini
+    from api_helpers import get_station_list, request_observations
 # ---------------------------------------------------------------------------
 
 
@@ -36,36 +39,59 @@ def parse_args():
     return ap.parse_args()
 
 def main():
-    args = parse_args()
-    api_key = load_api_key()
-    csv_path = Path(args.csv)
-    if not csv_path.exists():
-        raise FileNotFoundError(f"CSV not found: {csv_path}")
+    if True:
+        with open("weather_stations.txt", 'r', encoding="utf-8") as f:
+            content = f.read().strip()
+        stations = ast.literal_eval(content)
 
-    print(f"Loading: {csv_path}")
-    df = load_and_clean(str(csv_path))
+        api_key = load_api_key()
+        count = 0
+        for station in stations:
+            print(f"Getting weather data for {station}")
+            data = request_observations(station)
+            weather = data["properties"]
+            print(weather)
 
-    print(f"Aggregating with grid={args.grid}°, lookback={args.lookback} days...")
-    agg, max_ts = aggregate_regions(df, grid=args.grid, lookback_days=args.lookback)
+            print(f"Querying Gemini for {station}...")
+            result_text = ask_gemini_without_wildfire_data(api_key, weather)
+            print("\n=== Gemini Result ===")
+            print(result_text or "(No text returned)")
 
-    if agg.empty:
-        print("No recent activity found in the selected window. Try increasing --lookback.")
-        return
+            count += 1
+            if count >= 1:
+                break
 
-    candidates = agg.head(args.topn)
-    context_json = to_context_json(candidates, grid=args.grid, lookback_days=args.lookback, max_ts=max_ts)
+    else:
+        args = parse_args()
+        api_key = load_api_key()
+        csv_path = Path(args.csv)
+        if not csv_path.exists():
+            raise FileNotFoundError(f"CSV not found: {csv_path}")
 
-    out_dir = ensure_outputs_dir()
-    (out_dir / "candidates.json").write_text(context_json, encoding="utf-8")
-    print(f"Wrote summary for Gemini: {out_dir / 'candidates.json'}")
+        print(f"Loading: {csv_path}")
+        df = load_and_clean(str(csv_path))
 
-    print("Querying Gemini (plain-text result)...")
-    result_text = ask_gemini(api_key, context_json, grid_deg=args.grid, out_min=5, out_max=min(10, max(5, args.out)))
-    print("\n=== Gemini Result ===")
-    print(result_text or "(No text returned)")
+        print(f"Aggregating with grid={args.grid}°, lookback={args.lookback} days...")
+        agg, max_ts = aggregate_regions(df, grid=args.grid, lookback_days=args.lookback)
 
-    (out_dir / "top_regions.txt").write_text(result_text, encoding="utf-8")
-    print(f"\nSaved: {out_dir / 'top_regions.txt'}")
+        if agg.empty:
+            print("No recent activity found in the selected window. Try increasing --lookback.")
+            return
+
+        candidates = agg.head(args.topn)
+        context_json = to_context_json(candidates, grid=args.grid, lookback_days=args.lookback, max_ts=max_ts)
+
+        out_dir = ensure_outputs_dir()
+        (out_dir / "candidates.json").write_text(context_json, encoding="utf-8")
+        print(f"Wrote summary for Gemini: {out_dir / 'candidates.json'}")
+
+        print("Querying Gemini (plain-text result)...")
+        result_text = ask_gemini(api_key, context_json, grid_deg=args.grid, out_min=5, out_max=min(10, max(5, args.out)))
+        print("\n=== Gemini Result ===")
+        print(result_text or "(No text returned)")
+
+        (out_dir / "top_regions.txt").write_text(result_text, encoding="utf-8")
+        print(f"\nSaved: {out_dir / 'top_regions.txt'}")
 
 if __name__ == "__main__":
     main()
