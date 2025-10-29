@@ -1,3 +1,4 @@
 /data_access/db.properties
+.venv/
 /.env
 /outputs
