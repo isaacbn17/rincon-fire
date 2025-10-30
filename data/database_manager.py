@@ -86,6 +86,8 @@ class DatabaseManager:
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     station_id VARCHAR(10) NOT NULL,
                     station_name VARCHAR(100) NOT NULL,
+                    latitude FLOAT NOT NULL,
+                    longitude FLOAT NOT NULL,
                     timestamp DATETIME NOT NULL,
                     confidence INT NOT NULL,
                     weather_json JSON

@@ -5,6 +5,7 @@ import json
 from datetime import datetime
 import time
 import requests.exceptions
+import csv
 
 # --- robust imports: work with `python -m src.main` OR `python src/main.py` ---
 try:
@@ -51,7 +52,7 @@ def parse_confidence(response_text: str) -> float | None:
         return float(match.group(1))
     return None
 
-def insert_prediction(station_id, station_name, timestamp, confidence, weather):
+def insert_prediction(station_id, station_name, latitude, longitude, timestamp, confidence, weather):
     """Insert a wildfire prediction record into the database."""
     conn = DatabaseManager.get_connection()
     cursor = None
@@ -59,12 +60,14 @@ def insert_prediction(station_id, station_name, timestamp, confidence, weather):
         cursor = conn.cursor()
         sql = """
             INSERT INTO wildfire_location_prediction
-            (station_id, station_name, timestamp, confidence, weather_json)
-            VALUES (%s, %s, %s, %s, %s)
+            (station_id, station_name, latitude, longitude, timestamp, confidence, weather_json)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(sql, (
             station_id,
             station_name,
+            latitude,
+            longitude,
             timestamp,
             confidence,
             json.dumps(weather)  # Convert dict to JSON
@@ -79,48 +82,52 @@ def insert_prediction(station_id, station_name, timestamp, confidence, weather):
 
 def main():
     if True:
-        with open("weather_stations.txt", 'r', encoding="utf-8") as f:
-            content = f.read().strip()
-        stations = ast.literal_eval(content)
-
         api_key = load_api_key()
         count = 0
-        for station in stations:
-            print(f"\nGetting weather data for {station}")
-            data = request_observations(station)
-            weather = data["properties"]
-            station_id = weather["stationId"]
-            station_name = weather["stationName"]
-            timestamp = datetime.fromisoformat(weather["timestamp"])
+        with open("weather_stations.csv", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                station_url = row["station_url"]
+                latitude = float(row["latitude"])
+                longitude = float(row["longitude"])
 
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    print(f"\nQuerying Gemini...")
-                    result_text = ask_gemini_without_wildfire_data(api_key, weather)
-                    break
-                except requests.exceptions.HTTPError as e:
-                    if e.response is not None and e.response.status_code == 503:
-                        print(f"Gemini overloaded (503). Retrying in 5 seconds... (Attempt {attempt+1}/{max_retries}")
+                print(f"\nGetting weather data for {station_url}")
+                data = request_observations(station_url)
+                weather = data["properties"]
+
+                station_id = weather["stationId"]
+                station_name = weather["stationName"]
+                timestamp = datetime.fromisoformat(weather["timestamp"])
+
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        print(f"Querying Gemini...")
+                        result_text = ask_gemini_without_wildfire_data(api_key, weather)
+                        break
+                    except requests.exceptions.HTTPError as e:
+                        if e.response is not None and e.response.status_code == 503:
+                            print(f"Gemini overloaded (503). Retrying in 5 seconds... (Attempt {attempt+1}/{max_retries}")
+                            time.sleep(5)
+                        else:
+                            raise
+                    except Exception as e:
+                        print(f"Unexpected error: {e}")
                         time.sleep(5)
-                    else:
-                        raise
-                except Exception as e:
-                    print(f"Unexpected error: {e}")
-                    time.sleep(5)
-            else:
-                print("Failed after maximum retries.")
-                break
+                else:
+                    print("Failed after maximum retries.")
+                    break
 
-            print("\n=== Gemini Result ===")
-            print(result_text)
+                print("=== Gemini Result ===")
+                print(result_text)
 
-            confidence_score = parse_confidence(result_text)
-            insert_prediction(station_id, station_name, timestamp, confidence_score, weather)
+                confidence_score = parse_confidence(result_text)
+                insert_prediction(station_id, station_name, latitude, longitude, timestamp, confidence_score, weather)
 
-            count += 1
-            if count >= 1:
-                break
+                count += 1
+                print(f"{count}/500 completed.")
+                # if count >= 3:
+                #     break
 
     else:
         args = parse_args()

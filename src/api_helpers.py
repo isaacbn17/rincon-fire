@@ -131,5 +131,5 @@ def save_station_list(limit: int = 500) -> Optional[List[str]]:
         print(f"[ERR] parsing stations: {e}")
         return None
 
-    output = pd.DataFrame(out, columns=['station_id', 'latitude', 'longitude'])
+    output = pd.DataFrame(out, columns=['station_url', 'latitude', 'longitude'])
     output.to_csv('weather_stations.csv')
