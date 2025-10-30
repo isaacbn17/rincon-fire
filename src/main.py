@@ -92,12 +92,27 @@ def main():
                 longitude = float(row["longitude"])
 
                 print(f"\nGetting weather data for {station_url}")
-                data = request_observations(station_url)
-                weather = data["properties"]
+                try:
+                    data = request_observations(station_url)
+                    weather = data["properties"]
+                except requests.exceptions.HTTPError as e:
+                    if e.response is not None and e.response.status_code == 404:
+                        print(f"[404] No data found for {station_url}, skipping.")
+                        continue
+                    else:
+                        print(f"[HTTP Error] {e}")
+                        continue
+                except Exception as e:
+                    print(f"Unexpected error retrieving weather data: {e}")
+                    continue
 
-                station_id = weather["stationId"]
-                station_name = weather["stationName"]
-                timestamp = datetime.fromisoformat(weather["timestamp"])
+                try:
+                    station_id = weather["stationId"]
+                    station_name = weather["stationName"]
+                    timestamp = datetime.fromisoformat(weather["timestamp"])
+                except KeyError as e:
+                    print(f"Missing key {e} in weather data for {station_url}, skipping.")
+                    continue
 
                 max_retries = 3
                 for attempt in range(max_retries):
