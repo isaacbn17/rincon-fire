@@ -2,9 +2,6 @@ import mysql.connector
 from mysql.connector import Error
 from pathlib import Path
 
-class DataAccessException(Exception):
-    print(f"An exception occurred: {Exception}")
-
 class DatabaseManager:
     DATABASE_NAME = None
     USER = None
@@ -28,9 +25,8 @@ class DatabaseManager:
             DATABASE_NAME = properties["db.name"]
             USER = properties["db.user"]
             PASSWORD = properties["db.password"]
-
-            host = properties["db.host"]
-            port = int(properties["db.port"])
+            HOST = properties["db.host"]
+            PORT = int(properties["db.port"])
 
     except Exception as ex:
         raise RuntimeError(f"Unable to process db.properties: {ex}") from ex
@@ -52,7 +48,7 @@ class DatabaseManager:
             cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DatabaseManager.DATABASE_NAME}")
             conn.commit()
         except Error as e:
-            raise DataAccessException(e)
+            raise Exception(e)
         finally:
             if cursor:
                 cursor.close()
@@ -73,7 +69,7 @@ class DatabaseManager:
             )
             return conn
         except Error as e:
-            raise DataAccessException(e)
+            raise Exception(e)
 
 
     @staticmethod
@@ -88,11 +84,10 @@ class DatabaseManager:
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS wildfire_location_prediction (
                     id INT AUTO_INCREMENT PRIMARY KEY,
-                    latitude DOUBLE NOT NULL,
-                    longitude DOUBLE NOT NULL,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    model_version VARCHAR(50),
-                    confidence FLOAT,
+                    station_id VARCHAR(10) NOT NULL,
+                    station_name VARCHAR(100) NOT NULL,
+                    timestamp DATETIME NOT NULL,
+                    confidence INT NOT NULL,
                     weather_json JSON
                 )
             """)
@@ -112,7 +107,7 @@ class DatabaseManager:
             conn.commit()
 
         except Error as e:
-            raise DataAccessException(e)
+            raise Exception(e)
         finally:
             if cursor:
                 cursor.close()

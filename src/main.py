@@ -1,6 +1,8 @@
 import argparse
 import ast
-from pathlib import Path
+import re
+import json
+from datetime import datetime
 
 # --- robust imports: work with `python -m src.main` OR `python src/main.py` ---
 try:
@@ -10,6 +12,7 @@ try:
     from src.risk_summarize import to_context_json
     from src.prompt_gemini import ask_gemini, ask_gemini_without_wildfire_data
     from src.api_helpers import get_station_list, request_observations
+    from data.database_manager import DatabaseManager
 except ModuleNotFoundError:
     # fallback if run directly (or PYTHONPATH not set)
     import sys
@@ -21,6 +24,7 @@ except ModuleNotFoundError:
     from risk_summarize import to_context_json
     from prompt_gemini import ask_gemini
     from api_helpers import get_station_list, request_observations
+    from data.database_manager import DatabaseManager
 # ---------------------------------------------------------------------------
 
 
@@ -38,6 +42,39 @@ def parse_args():
     ap.add_argument("--out", type=int, default=DEFAULT_OUT, help="Ask Gemini for up to this many regions (5–10 recommended)")
     return ap.parse_args()
 
+def parse_confidence(response_text: str) -> float | None:
+    """Extract confidence score (0–100) from Gemini's response text."""
+    match = re.search(r"Confidence\s*score\s*:\s*([0-9]+)", response_text, re.IGNORECASE)
+    if match:
+        return float(match.group(1))
+    return None
+
+def insert_prediction(station_id, station_name, timestamp, confidence, weather):
+    """Insert a wildfire prediction record into the database."""
+    conn = DatabaseManager.get_connection()
+    cursor = None
+    try:
+        cursor = conn.cursor()
+        sql = """
+            INSERT INTO wildfire_location_prediction
+            (station_id, station_name, timestamp, confidence, weather_json)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        cursor.execute(sql, (
+            station_id,
+            station_name,
+            timestamp,
+            confidence,
+            json.dumps(weather)  # Convert dict to JSON
+        ))
+        conn.commit()
+    except Exception as e:
+        print(f"Error inserting record: {e}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+
 def main():
     if True:
         with open("weather_stations.txt", 'r', encoding="utf-8") as f:
@@ -47,15 +84,20 @@ def main():
         api_key = load_api_key()
         count = 0
         for station in stations:
-            print(f"Getting weather data for {station}")
+            print(f"\nGetting weather data for {station}")
             data = request_observations(station)
             weather = data["properties"]
-            print(weather)
+            station_id = weather["stationId"]
+            station_name = weather["stationName"]
+            timestamp = datetime.fromisoformat(weather["timestamp"])
 
-            print(f"Querying Gemini for {station}...")
+            print(f"\nQuerying Gemini...")
             result_text = ask_gemini_without_wildfire_data(api_key, weather)
             print("\n=== Gemini Result ===")
             print(result_text or "(No text returned)")
+
+            confidence_score = parse_confidence(result_text)
+            insert_prediction(station_id, station_name, timestamp, confidence_score, weather)
 
             count += 1
             if count >= 1:
