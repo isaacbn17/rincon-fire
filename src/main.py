@@ -3,6 +3,8 @@ import ast
 import re
 import json
 from datetime import datetime
+import time
+import requests.exceptions
 
 # --- robust imports: work with `python -m src.main` OR `python src/main.py` ---
 try:
@@ -91,10 +93,27 @@ def main():
             station_name = weather["stationName"]
             timestamp = datetime.fromisoformat(weather["timestamp"])
 
-            print(f"\nQuerying Gemini...")
-            result_text = ask_gemini_without_wildfire_data(api_key, weather)
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    print(f"\nQuerying Gemini...")
+                    result_text = ask_gemini_without_wildfire_data(api_key, weather)
+                    break
+                except requests.exceptions.HTTPError as e:
+                    if e.response is not None and e.response.status_code == 503:
+                        print(f"Gemini overloaded (503). Retrying in 5 seconds... (Attempt {attempt+1}/{max_retries}")
+                        time.sleep(5)
+                    else:
+                        raise
+                except Exception as e:
+                    print(f"Unexpected error: {e}")
+                    time.sleep(5)
+            else:
+                print("Failed after maximum retries.")
+                break
+
             print("\n=== Gemini Result ===")
-            print(result_text or "(No text returned)")
+            print(result_text)
 
             confidence_score = parse_confidence(result_text)
             insert_prediction(station_id, station_name, timestamp, confidence_score, weather)
