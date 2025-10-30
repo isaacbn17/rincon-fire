@@ -133,5 +133,3 @@ def save_station_list(limit: int = 500) -> Optional[List[str]]:
 
     output = pd.DataFrame(out, columns=['station_id', 'latitude', 'longitude'])
     output.to_csv('weather_stations.csv')
-
-save_station_list()
