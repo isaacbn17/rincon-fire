@@ -1,6 +1,7 @@
 import requests
 import time
 from typing import Any, Dict, List, Optional
+import pandas as pd
 
 USER_AGENT = "RinconFire/1.0 (contact: youremail@example.com)"  # set a real contact if you can
 DEFAULT_TIMEOUT = 15  # seconds
@@ -109,3 +110,28 @@ def request_weather(lat: float, lon: float) -> Optional[Dict[str, Any]]:
 
     latest = request_observations(first_station, latest_only=True)
     return latest
+
+
+def save_station_list(limit: int = 500) -> Optional[List[str]]:
+    """Return a list of station IDs (URLs) from /stations. Limit keeps it reasonable."""
+    station_data = []
+
+    url = f"{BASE}/stations"
+    resp = _get(url, params={"limit": limit})
+    if not resp:
+        return None
+    try:
+        data = resp.json()
+        out = []
+        for item in data['features']:
+            sid = item["id"]
+            coordinates = item["geometry"]["coordinates"]
+            out.append([sid, coordinates[0], coordinates[1]])
+    except Exception as e:
+        print(f"[ERR] parsing stations: {e}")
+        return None
+
+    output = pd.DataFrame(out, columns=['station_id', 'latitude', 'longitude'])
+    output.to_csv('weather_stations.csv')
+
+save_station_list()
