@@ -81,40 +81,46 @@ def insert_prediction(station_id, station_name, latitude, longitude, timestamp, 
 
 
 def main():
-    if True:
-        api_key = load_api_key()
-        count = 0
-        with open("weather_stations.csv", newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                station_url = row["station_url"]
-                latitude = float(row["latitude"])
-                longitude = float(row["longitude"])
+    api_key = load_api_key()
+    count = 0
+    weather_data_count = 0
+    with open("weather_stations.csv", newline="", encoding="utf-8") as f:
+        weather_data = []
 
-                print(f"\nGetting weather data for {station_url}")
-                try:
-                    data = request_observations(station_url)
-                    weather = data["properties"]
-                except requests.exceptions.HTTPError as e:
-                    if e.response is not None and e.response.status_code == 404:
-                        print(f"[404] No data found for {station_url}, skipping.")
-                        continue
-                    else:
-                        print(f"[HTTP Error] {e}")
-                        continue
-                except Exception as e:
-                    print(f"Unexpected error retrieving weather data: {e}")
+        reader = csv.DictReader(f)
+        for row in reader:
+            station_url = row["station_url"]
+            latitude = float(row["latitude"])
+            longitude = float(row["longitude"])
+
+            print(f"\nGetting weather data for {station_url}")
+            try:
+                data = request_observations(station_url)
+                weather = data["properties"]
+                weather_data.append(weather)
+                weather_data_count += 1
+            except requests.exceptions.HTTPError as e:
+                if e.response is not None and e.response.status_code == 404:
+                    print(f"[404] No data found for {station_url}, skipping.")
                     continue
-
-                try:
-                    station_id = weather["stationId"]
-                    station_name = weather["stationName"]
-                    timestamp = datetime.fromisoformat(weather["timestamp"])
-                except KeyError as e:
-                    print(f"Missing key {e} in weather data for {station_url}, skipping.")
+                else:
+                    print(f"[HTTP Error] {e}")
                     continue
+            except Exception as e:
+                print(f"Unexpected error retrieving weather data: {e}")
+                continue
 
-                max_retries = 3
+            try:
+                station_id = weather["stationId"]
+                station_name = weather["stationName"]
+                timestamp = datetime.fromisoformat(weather["timestamp"])
+            except KeyError as e:
+                print(f"Missing key {e} in weather data for {station_url}, skipping.")
+                continue
+
+            max_retries = 3
+            if weather_data_count >= 10:
+
                 for attempt in range(max_retries):
                     try:
                         print(f"Querying Gemini...")
@@ -136,45 +142,14 @@ def main():
                 print("=== Gemini Result ===")
                 print(result_text)
 
-                confidence_score = parse_confidence(result_text)
-                insert_prediction(station_id, station_name, latitude, longitude, timestamp, confidence_score, weather)
+                #confidence_score = parse_confidence(result_text)
+                #insert_prediction(station_id, station_name, latitude, longitude, timestamp, confidence_score, weather)
 
-                count += 1
-                print(f"{count}/500 completed.")
+            count += weather_data_count
+            print(f"{count}/500 completed.")
+            weather_data_count = 0
                 # if count >= 3:
                 #     break
-
-    else:
-        args = parse_args()
-        api_key = load_api_key()
-        csv_path = Path(args.csv)
-        if not csv_path.exists():
-            raise FileNotFoundError(f"CSV not found: {csv_path}")
-
-        print(f"Loading: {csv_path}")
-        df = load_and_clean(str(csv_path))
-
-        print(f"Aggregating with grid={args.grid}°, lookback={args.lookback} days...")
-        agg, max_ts = aggregate_regions(df, grid=args.grid, lookback_days=args.lookback)
-
-        if agg.empty:
-            print("No recent activity found in the selected window. Try increasing --lookback.")
-            return
-
-        candidates = agg.head(args.topn)
-        context_json = to_context_json(candidates, grid=args.grid, lookback_days=args.lookback, max_ts=max_ts)
-
-        out_dir = ensure_outputs_dir()
-        (out_dir / "candidates.json").write_text(context_json, encoding="utf-8")
-        print(f"Wrote summary for Gemini: {out_dir / 'candidates.json'}")
-
-        print("Querying Gemini (plain-text result)...")
-        result_text = ask_gemini(api_key, context_json, grid_deg=args.grid, out_min=5, out_max=min(10, max(5, args.out)))
-        print("\n=== Gemini Result ===")
-        print(result_text or "(No text returned)")
-
-        (out_dir / "top_regions.txt").write_text(result_text, encoding="utf-8")
-        print(f"\nSaved: {out_dir / 'top_regions.txt'}")
 
 if __name__ == "__main__":
     main()
