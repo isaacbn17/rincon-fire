@@ -30,15 +30,6 @@ except ModuleNotFoundError:
     from data.database_manager import DatabaseManager
 # ---------------------------------------------------------------------------
 
-def parse_args():
-    ap = argparse.ArgumentParser(description="Rank fire-risk regions with Gemini (free tier-friendly).")
-    ap.add_argument("--csv", required=True, help="Path to the fire discovery CSV (e.g., data/fires.csv)")
-    ap.add_argument("--grid", type=float, default=DEFAULT_GRID, help="Grid size in degrees (e.g., 1.0 or 0.5)")
-    ap.add_argument("--lookback", type=int, default=DEFAULT_LOOKBACK, help="Recent lookback window in days")
-    ap.add_argument("--topn", type=int, default=DEFAULT_TOPN, help="Number of top candidates to send to Gemini")
-    ap.add_argument("--out", type=int, default=DEFAULT_OUT, help="Ask Gemini for up to this many regions (5–10 recommended)")
-    return ap.parse_args()
-
 def old_parse_confidence(response_text: str) -> float | None:
     """Extract confidence score (0–100) from Gemini's response text."""
     match = re.search(r"Confidence\s*score\s*:\s*([0-9]+)", response_text, re.IGNORECASE)
