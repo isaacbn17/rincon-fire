@@ -9,3 +9,7 @@ if __name__ == "__main__":
         print("No weather data returned.")
     else:
         pprint(weather_data)
+
+        weather = weather_data["properties"]
+        print(f"barometric pressure: {weather['barometricPressure']['value']}")
+
