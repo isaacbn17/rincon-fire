@@ -1,4 +1,4 @@
-id,station_url,latitude,longitude
+id,station_url,longitude,latitude
 0,https://api.weather.gov/stations/0007W,-84.1787,30.53099
 1,https://api.weather.gov/stations/000PG,-121.33943,36.78921
 2,https://api.weather.gov/stations/000SE,-117.8552,34.1181399
