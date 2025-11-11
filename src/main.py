@@ -97,43 +97,26 @@ def main():
             try:
                 data = request_observations(station_url)
                 weather = data["properties"]
-                weather_data.append(weather)
-                weather_data_count += 1
-            except requests.exceptions.HTTPError as e:
-                if e.response is not None and e.response.status_code == 404:
-                    print(f"[404] No data found for {station_url}, skipping.")
-                    continue
-                else:
-                    print(f"[HTTP Error] {e}")
-                    continue
-            except Exception as e:
-                print(f"Unexpected error retrieving weather data: {e}")
-                continue
 
-            try:
                 station_id = weather["stationId"]
                 station_name = weather["stationName"]
                 timestamp = datetime.fromisoformat(weather["timestamp"])
-            except KeyError as e:
-                print(f"Missing key {e} in weather data for {station_url}, skipping.")
+
+                weather_data.append(weather)
+                weather_data_count += 1
+            except Exception as e:
+                print(f"Error retrieving weather data: {e}")
                 continue
 
-            max_retries = 3
             if weather_data_count >= 10:
-
+                max_retries = 3
                 for attempt in range(max_retries):
                     try:
                         print(f"Querying Gemini...")
                         result_text = ask_gemini_without_wildfire_data(api_key, weather)
                         break
-                    except requests.exceptions.HTTPError as e:
-                        if e.response is not None and e.response.status_code == 503:
-                            print(f"Gemini overloaded (503). Retrying in 5 seconds... (Attempt {attempt+1}/{max_retries}")
-                            time.sleep(5)
-                        else:
-                            raise
                     except Exception as e:
-                        print(f"Unexpected error: {e}")
+                        print(f"Error querying Gemini: {e}")
                         time.sleep(5)
                 else:
                     print("Failed after maximum retries.")
@@ -148,8 +131,7 @@ def main():
             count += weather_data_count
             print(f"{count}/500 completed.")
             weather_data_count = 0
-                # if count >= 3:
-                #     break
+
 
 if __name__ == "__main__":
     main()

@@ -11,5 +11,6 @@ if __name__ == "__main__":
         pprint(weather_data)
 
         weather = weather_data["properties"]
-        print(f"barometric pressure: {weather['barometricPressure']['value']}")
+        # print(f"barometric pressure: {weather['barometricPressure']['value']}")
+        print(weather)
 

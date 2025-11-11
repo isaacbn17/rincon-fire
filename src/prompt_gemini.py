@@ -127,8 +127,7 @@ def ask_gemini_without_wildfire_data(api_key: str, weather_json: str) -> str:
     )
     return getattr(resp, "text", "").strip()
 
-def ask_gemini(api_key: str,
-               weather_data: str) -> str:
+def ask_gemini(api_key: str, weather_data: str) -> str:
     client = genai.Client(api_key=api_key)
     prompt = PROMPT.format(
         weather_data=weather_data
