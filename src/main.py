@@ -77,13 +77,13 @@ def predict_wildfire_likelihood_in_batches():
             print(f"\nGetting weather data for {station_url}")
             try:
                 data = request_observations(station_url)
-                weather = data["properties"]
+                weather_json = data["properties"]
+                # TODO: Parse each variable from the weather json
+                station_id = weather_json["stationId"]
+                station_name = weather_json["stationName"]
+                timestamp = datetime.fromisoformat(weather_json["timestamp"])
 
-                station_id = weather["stationId"]
-                station_name = weather["stationName"]
-                timestamp = datetime.fromisoformat(weather["timestamp"])
-
-                weather_data.append(weather)
+                weather_data.append(weather_json)
                 weather_data_count += 1
             except Exception as e:
                 print(f"Error retrieving weather data: {e}")
@@ -94,7 +94,7 @@ def predict_wildfire_likelihood_in_batches():
                 for attempt in range(max_retries):
                     try:
                         print(f"Querying Gemini...")
-                        gemini_response = ask_gemini_without_wildfire_data(api_key, weather)
+                        gemini_response = ask_gemini(api_key, weather_json)
                         break
                     except Exception as e:
                         print(f"Error querying Gemini: {e}")
