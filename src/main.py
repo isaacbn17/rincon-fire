@@ -45,7 +45,7 @@ def parse_args():
     ap.add_argument("--out", type=int, default=DEFAULT_OUT, help="Ask Gemini for up to this many regions (5–10 recommended)")
     return ap.parse_args()
 
-def parse_confidence(response_text: str) -> float | None:
+def old_parse_confidence(response_text: str) -> float | None:
     """Extract confidence score (0–100) from Gemini's response text."""
     match = re.search(r"Confidence\s*score\s*:\s*([0-9]+)", response_text, re.IGNORECASE)
     if match:
@@ -79,8 +79,7 @@ def insert_prediction(station_id, station_name, latitude, longitude, timestamp, 
         if cursor: cursor.close()
         if conn: conn.close()
 
-
-def main():
+def predict_wildfire_likelihood_in_batches():
     api_key = load_api_key()
     count = 0
     weather_data_count = 0
@@ -113,7 +112,7 @@ def main():
                 for attempt in range(max_retries):
                     try:
                         print(f"Querying Gemini...")
-                        result_text = ask_gemini_without_wildfire_data(api_key, weather)
+                        gemini_response = ask_gemini_without_wildfire_data(api_key, weather)
                         break
                     except Exception as e:
                         print(f"Error querying Gemini: {e}")
@@ -123,15 +122,20 @@ def main():
                     break
 
                 print("=== Gemini Result ===")
-                print(result_text)
+                print(gemini_response)
 
-                #confidence_score = parse_confidence(result_text)
-                #insert_prediction(station_id, station_name, latitude, longitude, timestamp, confidence_score, weather)
+                # TODO: Implement a parse_confidence function that returns a list of the ten confidence scores returned by Gemini for the ten weather stations
+                # confidence_scores = parse_confidence(gemini_response)
+                for i in range(len(weather_data)):
+                    # confidence_score = confidence_scores[i]
+                    pass
 
             count += weather_data_count
             print(f"{count}/500 completed.")
             weather_data_count = 0
 
+def main():
+    predict_wildfire_likelihood_in_batches()
 
 if __name__ == "__main__":
     main()
