@@ -1,8 +1,10 @@
 import re
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 import csv
+from pathlib import Path
+from pprint import pprint
 
 # --- robust imports: work with `python -m src.main` OR `python src/main.py` ---
 try:
@@ -34,6 +36,35 @@ def old_parse_confidence(response_text: str) -> float | None:
         return float(match.group(1))
     return None
 
+def simplify_weather_json(weather_json: dict, latitude: float, longitude: float) -> dict:
+    props = weather_json.get("properties", {})
+    station_name = props.get("stationName", "Unknown Station")
+
+    simplified = {'stationName': station_name, 'latitude': latitude, 'longitude': longitude}
+    for key, value in props.items():
+        # Skip metadata and URLs
+        if key in {"@id", "@type", "icon", "rawMessage", "station", "stationId", "stationName", "textDescription"}:
+            continue
+
+        # If the value is a dict with a 'value' field, use that
+        if isinstance(value, dict) and "value" in value:
+            simplified[key] = value["value"]
+
+        # If it's a list (e.g., cloudLayers), extract first base value or None
+        elif isinstance(value, list):
+            if len(value) > 0:
+                first = value[0]
+                if isinstance(first, dict) and "base" in first:
+                    simplified[key] = first["base"].get("value")
+                else:
+                    simplified[key] = None
+            else:
+                simplified[key] = None
+        else:
+            simplified[key] = value
+
+    return simplified
+
 def insert_prediction(station_id, station_name, latitude, longitude, timestamp, confidence, weather):
     """Insert a wildfire prediction record into the database."""
     conn = DatabaseManager.get_connection()
@@ -61,29 +92,40 @@ def insert_prediction(station_id, station_name, latitude, longitude, timestamp, 
         if cursor: cursor.close()
         if conn: conn.close()
 
+def write_predictions_to_csv(gemini_response, cumulative_weather_data):
+    ROOT = Path(__file__).resolve().parents[1]  # goes up from src/ to rincon-fire/
+    DATA_DIR = ROOT / "data" / "fire-prediction"
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    csv_path = DATA_DIR / f"{date_str}-predictions.csv"
+
+    # TODO: Implement a parse_confidence function that returns a list of the ten confidence scores returned by Gemini for the ten weather stations
+    # confidence_scores = parse_confidence(gemini_response)
+    for i in range(len(cumulative_weather_data)):
+        weather_data = cumulative_weather_data[i]
+        # confidence_score = confidence_scores[i]
+        # weather_data["confidenceScore"] = confidence_score
+        file_exists = csv_path.exists()
+        with csv_path.open("a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=weather_data.keys())
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow(weather_data)
+
 def predict_wildfire_likelihood_in_batches():
     api_key = load_api_key()
     count = 0
     weather_data_count = 0
+    cumulative_weather_data = []
     with open("weather_stations.csv", newline="", encoding="utf-8") as f:
-        weather_data = []
-
         reader = csv.DictReader(f)
         for row in reader:
             station_url = row["station_url"]
-            latitude = float(row["latitude"])
-            longitude = float(row["longitude"])
-
             print(f"\nGetting weather data for {station_url}")
-            try:
-                data = request_observations(station_url)
-                weather_json = data["properties"]
-                # TODO: Parse each variable from the weather json
-                station_id = weather_json["stationId"]
-                station_name = weather_json["stationName"]
-                timestamp = datetime.fromisoformat(weather_json["timestamp"])
 
-                weather_data.append(weather_json)
+            try:
+                weather_json = request_observations(station_url)
+                weather = simplify_weather_json(weather_json, float(row["latitude"]), float(row["longitude"]))
+                cumulative_weather_data.append(weather)
                 weather_data_count += 1
             except Exception as e:
                 print(f"Error retrieving weather data: {e}")
@@ -94,7 +136,7 @@ def predict_wildfire_likelihood_in_batches():
                 for attempt in range(max_retries):
                     try:
                         print(f"Querying Gemini...")
-                        gemini_response = ask_gemini(api_key, weather_json)
+                        gemini_response = ask_gemini(api_key, cumulative_weather_data)
                         break
                     except Exception as e:
                         print(f"Error querying Gemini: {e}")
@@ -106,15 +148,12 @@ def predict_wildfire_likelihood_in_batches():
                 print("=== Gemini Result ===")
                 print(gemini_response)
 
-                # TODO: Implement a parse_confidence function that returns a list of the ten confidence scores returned by Gemini for the ten weather stations
-                # confidence_scores = parse_confidence(gemini_response)
-                for i in range(len(weather_data)):
-                    # confidence_score = confidence_scores[i]
-                    pass
+                write_predictions_to_csv(gemini_response, cumulative_weather_data)
 
             count += weather_data_count
             print(f"{count}/500 completed.")
             weather_data_count = 0
+            cumulative_weather_data = []
 
 def main():
     predict_wildfire_likelihood_in_batches()
