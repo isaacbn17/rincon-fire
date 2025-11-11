@@ -30,12 +30,6 @@ except ModuleNotFoundError:
     from data.database_manager import DatabaseManager
 # ---------------------------------------------------------------------------
 
-
-def ensure_outputs_dir():
-    out_dir = Path(__file__).resolve().parent.parent / "outputs"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    return out_dir
-
 def parse_args():
     ap = argparse.ArgumentParser(description="Rank fire-risk regions with Gemini (free tier-friendly).")
     ap.add_argument("--csv", required=True, help="Path to the fire discovery CSV (e.g., data/fires.csv)")
