@@ -114,6 +114,22 @@ Task:
 
 Data:
 {weather_data}
+
+FORMAT INSTRUCTIONS (IMPORTANT):
+- You must respond with a single valid JSON object.
+- The JSON object MUST have this exact structure:
+
+{{
+  "scores": [
+    s1, s2, s3, ...
+  ]
+}}
+
+- Each s_i:
+  - Is a number between 1 and 1000 (inclusive).
+  - Corresponds to one row in the `Data` list, in the same order.
+- Do NOT include any extra keys, text, explanations, or comments.
+- Your entire reply MUST be valid JSON.
 """
 
 def ask_gemini_without_wildfire_data(api_key: str, weather_json: str) -> str:
