@@ -110,7 +110,7 @@ id,date_time,latitude,longitude,temperature,dewpoint,relative_humidity,precipita
 
 
 Task:
-1) Return a confidence score from 1 to 1000 for the following dataset, indicating the likelihood you believe there would be a wildfire in the given region.
+1) Return a boolean (0 or 1) for the following dataset, indicating if you believe there's a wildfire in the given region.
 
 Data:
 {weather_data}
@@ -126,7 +126,7 @@ FORMAT INSTRUCTIONS (IMPORTANT):
 }}
 
 - Each s_i:
-  - Is a number between 1 and 1000 (inclusive).
+  - Is a boolean value 0 or 1
   - Corresponds to one row in the `Data` list, in the same order.
 - Do NOT include any extra keys, text, explanations, or comments.
 - Your entire reply MUST be valid JSON.

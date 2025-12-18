@@ -194,35 +194,31 @@ def predict_wildfire_likelihood_in_batches():
                 cumulative_weather_data.append(weather)
                 weather_data_count += 1
             except Exception as e:
-                with open("invalid_Urls.txt", "a", encoding="utf-8") as f2:
-                    f2.write(f"{station_url}\n")
-                print(f"Error retrieving weather data: {e}")
                 continue
 
-            # if weather_data_count >= 10:
-            #     max_retries = 3
-            #     for attempt in range(max_retries):
-            #         try:
-            #             print(f"Querying Gemini...")
-            #             gemini_response = ask_gemini(api_key, cumulative_weather_data)
-            #             break
-            #         except Exception as e:
-            #             print(f"Error querying Gemini: {e}")
-            #             time.sleep(5)
-            #     else:
-            #         print("Failed after maximum retries.")
-            #         break
-            #
-            #     print("=== Gemini Result ===")
-            #     print(gemini_response)
-            #
-            #     write_predictions_to_csv(gemini_response, cumulative_weather_data)
-            #     weather_data_count = 0
-            #     cumulative_weather_data = []
+            if weather_data_count >= 10:
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        print(f"Querying Gemini...")
+                        gemini_response = ask_gemini(api_key, cumulative_weather_data)
+                        break
+                    except Exception as e:
+                        print(f"Error querying Gemini: {e}")
+                        time.sleep(5)
+                else:
+                    print("Failed after maximum retries.")
+                    break
+
+                print("=== Gemini Result ===")
+                print(gemini_response)
+
+                write_predictions_to_csv(gemini_response, cumulative_weather_data)
+                weather_data_count = 0
+                cumulative_weather_data = []
 
             count += 1
             print(f"{count}/500 completed.")
-
 
 
 def main():
