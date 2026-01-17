@@ -5,32 +5,44 @@ import time
 import csv
 from pathlib import Path
 from pprint import pprint
+import sys
 
-# --- robust imports: work with `python -m src.main` OR `python src/main.py` ---
+# --- robust imports: work with `python -m src.main` OR `python src/main.py` OR `uv run src/main.py` ---
+# Set up path first to avoid circular import issues
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(ROOT / "src"))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 try:
-    # when run as a module from project root
+    # Try absolute imports first (when run as module)
     from src.config import load_api_key, DEFAULT_GRID, DEFAULT_LOOKBACK, DEFAULT_TOPN, DEFAULT_OUT
     from src.preprocess import load_and_clean, aggregate_regions
     from src.risk_summarize import to_context_json
     from src.prompt_gemini import ask_gemini, ask_gemini_without_wildfire_data
     from src.api_helpers import get_station_list, request_observations
+    from src.rf_baseline import predict_fire_risk, get_trained_model
+    from src.highsight import get_satellite_image
     try:
         from data.database_manager import DatabaseManager
     except Exception as e:
         print(f"Warning: database disabled because DatabaseManager could not be imported: {e}")
         DatabaseManager = None
-except ModuleNotFoundError:
-    # fallback if run directly (or PYTHONPATH not set)
-    import sys
-    from pathlib import Path
-    ROOT = Path(__file__).resolve().parents[1]
-    sys.path.insert(0, str(ROOT / "src"))
+except (ModuleNotFoundError, ImportError):
+    # Fallback to relative imports (when run directly)
     from config import load_api_key, DEFAULT_GRID, DEFAULT_LOOKBACK, DEFAULT_TOPN, DEFAULT_OUT
     from preprocess import load_and_clean, aggregate_regions
     from risk_summarize import to_context_json
-    from prompt_gemini import ask_gemini
+    from prompt_gemini import ask_gemini, ask_gemini_without_wildfire_data
     from api_helpers import get_station_list, request_observations
-    from data.database_manager import DatabaseManager
+    from rf_baseline import predict_fire_risk, get_trained_model
+    from highsight import get_satellite_image
+    try:
+        from data.database_manager import DatabaseManager
+    except Exception as e:
+        print(f"Warning: database disabled because DatabaseManager could not be imported: {e}")
+        DatabaseManager = None
 # ---------------------------------------------------------------------------
 
 def old_parse_confidence(response_text: str) -> float | None:
@@ -182,7 +194,17 @@ def predict_wildfire_likelihood_in_batches():
     count = 0
     weather_data_count = 0
     cumulative_weather_data = []
-    with open("weather_stations.csv", newline="", encoding="utf-8") as f:
+    
+    # Pre-load the RF model once for efficiency (uses cached model after first call)
+    print("Loading RF model for fire prediction filtering...")
+    rf_model, _ = get_trained_model(seed=42, use_cache=True)
+    print("RF model loaded successfully.")
+    
+    # Find weather_stations.csv relative to this script
+    script_dir = Path(__file__).resolve().parent
+    weather_stations_path = script_dir / "weather_stations.csv"
+    
+    with open(weather_stations_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             station_url = row["station_url"]
@@ -191,9 +213,18 @@ def predict_wildfire_likelihood_in_batches():
             try:
                 weather_json = request_observations(station_url)
                 weather = simplify_weather_json(weather_json, float(row["latitude"]), float(row["longitude"]))
+                
+                # Use RF model to filter: only process stations where model predicts fire
+                prediction, probability = predict_fire_risk(weather, model=rf_model, return_proba=True)
+                if probability < 0.65:
+                    print(f"  RF model predicts no fire (prob={probability:.3f}), skipping.")
+                    continue
+                print(f"  RF model predicts fire (prob={probability:.3f}), including.")
+                
                 cumulative_weather_data.append(weather)
                 weather_data_count += 1
             except Exception as e:
+                print(f"  Error processing station: {e}")
                 continue
 
             if weather_data_count >= 10:
@@ -213,7 +244,15 @@ def predict_wildfire_likelihood_in_batches():
                 print("=== Gemini Result ===")
                 print(gemini_response)
 
-                write_predictions_to_csv(gemini_response, cumulative_weather_data)
+                fire_predictions = parse_confidence(gemini_response) # list of 1 or 0 for each weather station
+                # Get images for each weather station that has a fire prediction
+                for i in range(len(cumulative_weather_data)):
+                    if fire_predictions[i] == 1:
+                        img = get_satellite_image(cumulative_weather_data[i])
+                        if img:
+                            cumulative_weather_data[i]["satellite_image"] = img
+
+                write_predictions_to_csv(gemini_response, cumulative_weather_data) # list of weather data with satellite image path
                 weather_data_count = 0
                 cumulative_weather_data = []
 

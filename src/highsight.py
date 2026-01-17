@@ -27,8 +27,11 @@ def latlon_to_tile(lat_deg: float, lon_deg: float, z: int):
 
 
 
-def main():
-    x, y = latlon_to_tile(lat, lon, zoom)
+def get_satellite_image(weather_data):
+    if "latitude" not in weather_data or "longitude" not in weather_data:
+        print("Error: latitude or longitude not found in weather data")
+        return
+    x, y = latlon_to_tile(float(weather_data["latitude"]), float(weather_data["longitude"]), zoom)
     print(f"Using z={zoom}, x={x}, y={y}")
 
     url = f"https://api.highsight.dev/v1/satellite/{zoom}/{x}/{y}?key={API_KEY}"
@@ -46,8 +49,6 @@ def main():
         print("Could not open image:", e)
         return
 
-    img.show()
-
     project_root = Path(__file__).resolve().parent.parent
     output_dir = project_root / "outputs" / "highsight"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -56,7 +57,5 @@ def main():
     img.save(output_path)
 
     print("Image saved as:", output_path)
-
-
-if __name__ == "__main__":
-    main()
+    return output_path
+    
