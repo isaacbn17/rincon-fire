@@ -1,4 +1,9 @@
 /data/db.properties
 .venv/
+venv/
 /.env
 /outputs
+
+# Python bytecode
+__pycache__/
+*.pyc
