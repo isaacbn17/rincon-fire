@@ -17,12 +17,12 @@ if str(ROOT) not in sys.path:
 
 try:
     # Try absolute imports first (when run as module)
-    from src.config import load_api_key, DEFAULT_GRID, DEFAULT_LOOKBACK, DEFAULT_TOPN, DEFAULT_OUT
-    from src.preprocess import load_and_clean, aggregate_regions
-    from src.risk_summarize import to_context_json
-    from src.prompt_gemini import ask_gemini, ask_gemini_without_wildfire_data
+    from src.archive.config import load_api_key, DEFAULT_GRID, DEFAULT_LOOKBACK, DEFAULT_TOPN, DEFAULT_OUT
+    from src.archive.preprocess import load_and_clean, aggregate_regions
+    from src.archive.risk_summarize import to_context_json
+    from src.archive.prompt_gemini import ask_gemini, ask_gemini_without_wildfire_data
     from src.api_helpers import get_station_list, request_observations
-    from src.rf_baseline import predict_fire_risk, get_trained_model
+    # from src.rf_baseline import predict_fire_risk, get_trained_model
     from src.highsight import get_satellite_image
     try:
         from data.database_manager import DatabaseManager
@@ -31,10 +31,10 @@ try:
         DatabaseManager = None
 except (ModuleNotFoundError, ImportError):
     # Fallback to relative imports (when run directly)
-    from config import load_api_key, DEFAULT_GRID, DEFAULT_LOOKBACK, DEFAULT_TOPN, DEFAULT_OUT
-    from preprocess import load_and_clean, aggregate_regions
-    from risk_summarize import to_context_json
-    from prompt_gemini import ask_gemini, ask_gemini_without_wildfire_data
+    from src.archive.config import load_api_key, DEFAULT_GRID, DEFAULT_LOOKBACK, DEFAULT_TOPN, DEFAULT_OUT
+    from src.archive.preprocess import load_and_clean, aggregate_regions
+    from src.archive.risk_summarize import to_context_json
+    from src.archive.prompt_gemini import ask_gemini, ask_gemini_without_wildfire_data
     from api_helpers import get_station_list, request_observations
     from rf_baseline import predict_fire_risk, get_trained_model
     from highsight import get_satellite_image

@@ -1,4 +1,5 @@
 /data/db.properties
+/data/models/rf.joblib
 .venv/
 venv/
 /.env
