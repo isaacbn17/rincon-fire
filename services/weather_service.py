@@ -1,16 +1,18 @@
-import time
 import csv
+import math
+import time
 from pathlib import Path
 from pprint import pprint
-import requests
-import time
 from typing import Any, Dict, List, Optional
-import math
+
+import requests
+
+from config import Config
 
 USER_AGENT = "RinconFire/1.0 (contact: youremail@example.com)"  # set a real contact if you can
 DEFAULT_TIMEOUT = 15  # seconds
 BASE = "https://api.weather.gov"
-WEATHER_STATIONS_CSV = Path("data/weather_stations.csv")
+WEATHER_STATIONS_CSV = Config().STATIONS_DIR
 
 def _get(url: str, *, headers: Optional[Dict[str, str]] = None, params: Optional[Dict[str, Any]] = None,
          timeout: int = DEFAULT_TIMEOUT, max_retries: int = 3, backoff: float = 1.5) -> Optional[requests.Response]:

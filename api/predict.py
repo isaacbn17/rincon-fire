@@ -2,7 +2,6 @@ from __future__ import annotations
 from flask import Blueprint, request, jsonify, current_app
 from services.weather_service import get_weather_for_stations, weather_to_features
 import numpy as np
-from services.weather_service import get_weather_for_stations
 
 bp_predict = Blueprint("predict", __name__)
 

@@ -8,7 +8,7 @@ class Config:
     MODEL_VERSION: str = os.getenv("MODEL_VERSION", "rf_v1")
 
     IMAGE_DIR: Path = Path(os.getenv("IMAGE_DIR", "data/images"))
-    STATIONS_DIR: Path = Path(os.getenv("STATIONS_DIR", "src/weather_stations.csv"))
+    STATIONS_DIR: Path = Path(os.getenv("STATIONS_DIR", "data/weather_stations.csv"))
     
     # Flask limits (protects you from huge payloads)
     MAX_CONTENT_LENGTH: int = int(os.getenv("MAX_CONTENT_LENGTH", str(2 * 1024 * 1024)))  # 2MB
