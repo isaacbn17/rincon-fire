@@ -133,12 +133,20 @@ def safe_float(value: Any) -> float:
     return float(value)
 
 def weather_to_features(weather_record: dict[str, Any]) -> list[float]:
+    """
+    Convert a weather.gov observation into the 8 features the RF model expects.
+    Order must match training: temperature, dewpoint, humidity, precipitationLast3Hours,
+    windDirection, windSpeed, windGust, barometricPressure.
+    """
     return [
-        safe_float(weather_record["temperature"]),
-        safe_float(weather_record["dewpoint"]),
-        safe_float(weather_record["relativeHumidity"]),
-        safe_float(weather_record["windSpeed"]),
-        safe_float(weather_record["barometricPressure"]),
+        safe_float(weather_record.get("temperature")),
+        safe_float(weather_record.get("dewpoint")),
+        safe_float(weather_record.get("relativeHumidity")),          # humidity
+        safe_float(weather_record.get("precipitationLast3Hours")),
+        safe_float(weather_record.get("windDirection")),
+        safe_float(weather_record.get("windSpeed")),
+        safe_float(weather_record.get("windGust")),
+        safe_float(weather_record.get("barometricPressure")),
     ]
 
 def practice():
