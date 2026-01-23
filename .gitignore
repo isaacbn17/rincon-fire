@@ -1,4 +1,10 @@
 /data/db.properties
+/data/models/rf.joblib
 .venv/
+venv/
 /.env
 /outputs
+
+# Python bytecode
+__pycache__/
+*.pyc

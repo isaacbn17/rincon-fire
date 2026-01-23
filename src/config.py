@@ -20,7 +20,8 @@ def load_api_key():
                 k, v = line.split("=", 1)
                 os.environ.setdefault(k.strip(), v.strip())
 
-    key = (os.environ.get("GOOGLE_API_KEY")
+    key = (os.environ.get("GOOGLE_LAWCHAT_API_KEY")
+           or os.environ.get("GOOGLE_API_KEY")
            or os.environ.get("GEMINI_API_KEY")
            or "").strip()
 
