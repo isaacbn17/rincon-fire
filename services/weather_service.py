@@ -4,9 +4,7 @@ import time
 from pathlib import Path
 from pprint import pprint
 from typing import Any, Dict, List, Optional
-
 import requests
-
 from config import Config
 
 USER_AGENT = "RinconFire/1.0 (contact: youremail@example.com)"  # set a real contact if you can
@@ -113,6 +111,7 @@ def get_weather_for_stations(n_stations: int):
     for station in stations:
         try:
             # Fetch observations for a station URL (e.g., 'https://api.weather.gov/stations/KDCA')
+            print(f"Getting weather data for station: {station}")
             url = station["station_url"].rstrip("/") + "/observations/latest"
             weather_json = _get(url)
             weather = simplify_weather_json(weather_json, float(station["latitude"]), float(station["longitude"]))
@@ -143,7 +142,8 @@ def weather_to_features(weather_record: dict[str, Any]) -> list[float]:
     return [
         safe_float(weather_record.get("temperature")),
         safe_float(weather_record.get("dewpoint")),
-        safe_float(weather_record.get("relativeHumidity")),          # humidity
+        # model feature is "humidity" but source key may be "relativeHumidity"
+        safe_float(weather_record.get("humidity", weather_record.get("relativeHumidity"))),
         safe_float(weather_record.get("precipitationLast3Hours")),
         safe_float(weather_record.get("windDirection")),
         safe_float(weather_record.get("windSpeed")),
@@ -151,11 +151,3 @@ def weather_to_features(weather_record: dict[str, Any]) -> list[float]:
         safe_float(weather_record.get("barometricPressure")),
     ]
 
-def practice():
-    url = "https://api.weather.gov/stations/0007W/observations/latest"
-    weather_json = _get(url)
-    weather = simplify_weather_json(weather_json, 30.53099, -84.1787)
-    pprint(weather)
-
-if __name__ == "__main__":
-    practice()

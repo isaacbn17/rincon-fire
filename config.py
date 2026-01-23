@@ -5,7 +5,7 @@ from pathlib import Path
 @dataclass(frozen=True)
 class Config:
     MODEL_PATH: Path = Path(os.getenv("MODEL_PATH", "data/models/rf.joblib"))
-    MODEL_VERSION: str = os.getenv("MODEL_VERSION", "rf_v1")
+    MODEL_VERSION: str = os.getenv("MODEL_VERSION", "rf_timeseries")
 
     IMAGE_DIR: Path = Path(os.getenv("IMAGE_DIR", "data/images"))
     STATIONS_DIR: Path = Path(os.getenv("STATIONS_DIR", "data/weather_stations.csv"))

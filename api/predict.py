@@ -2,9 +2,21 @@ from __future__ import annotations
 from flask import Blueprint, request, jsonify, current_app
 from services.weather_service import get_weather_for_stations, weather_to_features
 import numpy as np
+import pandas as pd
+
+FEATURE_NAMES = [
+    "temperature",
+    "dewpoint",
+    "humidity",
+    "precipitationLast3Hours",
+    "windDirection",
+    "windSpeed",
+    "windGust",
+    "barometricPressure",
+]
+
 
 bp_predict = Blueprint("predict", __name__)
-
 
 @bp_predict.post("/api/v1/predict/weather")
 def predict_weather():
@@ -28,11 +40,13 @@ def predict_weather():
         weather = rec.get("weather")
 
         features = np.array(weather_to_features(weather), dtype=float)
-        pred = predictor.predict_proba_one(features)
+        feature_dict = dict(zip(FEATURE_NAMES, features.tolist()))
+        X_df = pd.DataFrame([features], columns=FEATURE_NAMES)
+        pred = predictor.predict_proba_one(X_df)
 
         results.append({
             "station": station_url,
-            "weather": weather,
+            "weather": feature_dict,
             "prediction": {
                 "wildfire_probability": pred.wildfire_probability,
                 "model_version": pred.model_version,
@@ -42,5 +56,3 @@ def predict_weather():
         })
 
     return jsonify({"count": len(results), "results": results}), 200
-
-
