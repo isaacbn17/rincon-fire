@@ -21,7 +21,7 @@ class RandomForestPredictor:
         if self._model is None:
             self._model = joblib.load(self.model_path)
 
-    def predict_proba_one(self, features: np.ndarray, threshold: float = 0.5) -> PredictionResult:
+    def predict_proba_one(self, features: np.ndarray, threshold: float = 0.8) -> PredictionResult:
         """
         features: shape (n_features,) OR (1, n_features)
         """
