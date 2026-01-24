@@ -1,0 +1,36 @@
+# docker-compose.yml
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      # Mount host ./data -> container /data
+      - ./data:/data
+    environment:
+      # Common pattern: backend can allow CORS from the UI dev server if needed
+      # - CORS_ORIGIN=http://ui:5173
+      # Or if your backend expects the UI URL:
+      # - UI_BASE_URL=http://ui:5173
+      - PORT=8000
+    expose:
+      # Expose to other services on the compose network (not published to host)
+      - "8000"
+    ports:
+      # Optional: publish backend to host for debugging/testing
+      - "8000:8000"
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    environment:
+      # Your Vite app should call the backend using this internal DNS name
+      # e.g. fetch(`${import.meta.env.VITE_API_BASE_URL}/health`)
+      - VITE_API_BASE_URL=http://backend:8000
+    ports:
+      # Assuming your UI container serves on 5173 (Vite) or 80 (nginx).
+      # Keep 5173 here if you're running the Vite dev server inside Docker.
+      - "5173:5173"
