@@ -1,0 +1,43 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  padding: 10px 20px;
+  background: #111;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+}
+
+.toolbar button {
+  margin-left: 10px;
+}
+
+.grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 60% 40%;
+  grid-template-rows: 50% 50%;
+}
+
+.mapPanel {
+  grid-row: 1 / span 2;
+}
+
+.detailsPanel {
+  padding: 10px;
+  overflow: auto;
+}
+
+.tablePanel {
+  padding: 10px;
+  overflow: auto;
+}
