@@ -1,5 +1,5 @@
-/data/db.properties
-/data/models/rf.joblib
+/backend/data/db.properties
+/backend/data/models/rf.joblib
 .venv/
 venv/
 /.env
