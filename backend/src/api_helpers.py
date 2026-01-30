@@ -2,8 +2,9 @@ import requests
 import time
 from typing import Any, Dict, List, Optional
 import pandas as pd
+from datetime import datetime
 
-USER_AGENT = "RinconFire/1.0 (contact: youremail@example.com)"  # set a real contact if you can
+USER_AGENT = "RinconFire/1.0 (contact: user)"  # set a real contact if you can
 DEFAULT_TIMEOUT = 15  # seconds
 BASE = "https://api.weather.gov"
 
@@ -60,6 +61,113 @@ def request_observations(station_id_url: str, latest_only: bool = True) -> Optio
     resp = _get(url)
     return resp.json() if resp else None
 
+def request_seven_day_observations(station_id_url: str):
+    # Iterate through pages and then grab only dates/times that we want
+    out = []
+    has_next_page = True
+    url = station_id_url.rstrip("/") + "/observations"
+    hour = -1
+    days = []
+    while has_next_page and len(out) < 7:
+        resp = _get(url, params={"limit": 500})
+        if not resp:
+            return None
+        try:
+            data = resp.json()
+            for item in data['features']:
+                sid = item["id"]
+                timestamp = item['properties']['timestamp']
+                date_time = datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%S+00:00')
+                if hour == -1:
+                    hour = date_time.hour
+
+                if date_time.hour == hour and date_time.day not in days:
+                    out.append(item['properties'])
+                    days.append(date_time.day)
+                    if len(out) >= 7:
+                        break
+
+            if 'pagination' in data.keys():
+                url = data['pagination']['next']
+                has_next_page = True
+            else:
+                has_next_page = False
+
+        except Exception as e:
+            print(f"[ERR] parsing stations: {e}")
+            return None
+    return out
+
+
+def request_seven_day_weather(lat: float, lon: float):
+    points_url = f"{BASE}/points/{lat},{lon}"
+    resp = _get(points_url)
+    if not resp:
+        return None
+    try:
+        points = resp.json()
+        stations_url = points.get("properties", {}).get("observationStations")
+        if not stations_url:
+            print("[WARN] No observationStations link in points payload.")
+            return None
+    except Exception as e:
+        print(f"[ERR] parsing points: {e}")
+        return None
+
+    resp2 = _get(stations_url)
+    if not resp2:
+        return None
+    try:
+        stations_payload = resp2.json()
+        features = stations_payload.get("features", [])
+        if not features:
+            print("[WARN] No stations found near the provided coordinates.")
+            return None
+        first_station = features[0].get("id")
+        if not first_station:
+            print("[WARN] First station has no id.")
+            return None
+    except Exception as e:
+        print(f"[ERR] parsing stations list for point: {e}")
+        return None
+
+    # Iterate through pages and then grab only dates/times that we want
+    out = []
+    has_next_page = True
+    url = first_station.rstrip("/") + "/observations"
+    hour = -1
+    minutes = -1
+    while has_next_page and len(out) < 7:
+        resp = _get(url, params={"limit": 500})
+        if not resp:
+            return None
+        try:
+            data = resp.json()
+            for item in data['features']:
+                sid = item["id"]
+                timestamp = item['properties']['timestamp']
+                date_time = datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%S+00:00')
+                if hour == -1:
+                    hour = date_time.hour
+                    minutes = date_time.minute
+
+                if date_time.hour == hour and date_time.minute == minutes:
+                    out.append(item['properties'])
+                    if len(out) >= 7:
+                        break
+
+            if 'pagination' in data.keys():
+                url = data['pagination']['next']
+                has_next_page = True
+            else:
+                has_next_page = False
+
+        except Exception as e:
+            print(f"[ERR] parsing stations: {e}")
+            return None
+    return out
+
+
 def get_all_station_observations(station_id_list: List[str], latest_only: bool = True) -> Dict[str, Dict[str, Any]]:
     """Loop over station IDs and collect observations."""
     out: Dict[str, Dict[str, Any]] = {}
@@ -114,22 +222,41 @@ def request_weather(lat: float, lon: float) -> Optional[Dict[str, Any]]:
 
 def save_station_list(limit: int = 500) -> Optional[List[str]]:
     """Return a list of station IDs (URLs) from /stations. Limit keeps it reasonable."""
-    station_data = []
-
     url = f"{BASE}/stations"
-    resp = _get(url, params={"limit": limit})
-    if not resp:
-        return None
-    try:
-        data = resp.json()
-        out = []
-        for item in data['features']:
-            sid = item["id"]
-            coordinates = item["geometry"]["coordinates"]
-            out.append([sid, coordinates[0], coordinates[1]])
-    except Exception as e:
-        print(f"[ERR] parsing stations: {e}")
-        return None
+    has_next_page = True
+
+    out = []
+    prev_out = -1
+    while has_next_page:
+        resp = _get(url, params={"limit": limit})
+        if not resp:
+            output = pd.DataFrame(out, columns=['station_url', 'latitude', 'longitude'])
+            output.to_csv('weather_stations.csv')
+            return None
+        try:
+            data = resp.json()
+            for item in data['features']:
+                sid = item["id"]
+                coordinates = item["geometry"]["coordinates"]
+                out.append([sid, coordinates[1], coordinates[0]])
+            if data['pagination'] is not None:
+                url = data['pagination']['next']
+                has_next_page = True
+            else:
+                has_next_page = False
+
+        except Exception as e:
+            print(f"[ERR] parsing stations: {e}")
+            return None
+
+        if len(out) == prev_out:
+            has_next_page = False
+        prev_out = len(out)
 
     output = pd.DataFrame(out, columns=['station_url', 'latitude', 'longitude'])
+    print(len(output))
     output.to_csv('weather_stations.csv')
+
+weather = request_seven_day_observations('https://api.weather.gov/stations/0007W')
+for w in weather:
+    print(w)
