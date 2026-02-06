@@ -1,14 +1,12 @@
-import time
-from datetime import datetime
-import pandas as pd
-from typing import Any, Dict, List, Optional
 import requests
-from config import Config
+import time
+from typing import Any, Dict, List, Optional
+import pandas as pd
+from datetime import datetime
 
-USER_AGENT = "RinconFire/1.0 (contact: youremail@example.com)"  # set a real contact if you can
+USER_AGENT = "RinconFire/1.0 (contact: user)"  # set a real contact if you can
 DEFAULT_TIMEOUT = 15  # seconds
 BASE = "https://api.weather.gov"
-WEATHER_STATIONS_CSV = Config().STATIONS_DIR
 
 def _get(url: str, *, headers: Optional[Dict[str, str]] = None, params: Optional[Dict[str, Any]] = None,
          timeout: int = DEFAULT_TIMEOUT, max_retries: int = 3, backoff: float = 1.5) -> Optional[requests.Response]:
@@ -30,7 +28,7 @@ def _get(url: str, *, headers: Optional[Dict[str, str]] = None, params: Optional
             if not resp.ok:
                 print(f"[{resp.status_code}] GET {url} failed: {resp.text[:200]}")
                 return None
-            return resp  # .json()
+            return resp
         except requests.RequestException as e:
             wait = backoff ** attempt
             print(f"[EXC] {e}; retrying in {wait:.1f}s...")
@@ -78,67 +76,7 @@ def request_seven_day_observations(station_id_url: str):
             return None
     return out
 
-def extract_weather(weather_data):
-    extracted_weather_data = []
-    for observation in weather_data:
-        properties = observation
-        extracted_weather_data.append({
-            'date': properties.get('timestamp'),
-            'temperature': properties.get('temperature', {}).get('value'),
-            'dewpoint': properties.get('dewpoint', {}).get('value'),
-            'windDirection': properties.get('windDirection', {}).get('value'),
-            'windSpeed': properties.get('windSpeed', {}).get('value'),
-            'windGust': properties.get('windGust', {}).get('value'),
-            'barometricPressure': properties.get('barometricPressure', {}).get('value'),
-            'precipitationLast3Hours': properties.get('precipitationLast3Hours', {}).get('value'),
-            'relativeHumidity': properties.get('relativeHumidity', {}).get('value'),
-        })
+weather_station_url = "https://api.weather.gov/stations/KAGU1"
+weather_data = request_seven_day_observations(weather_station_url)
 
-    weather_df = pd.DataFrame(extracted_weather_data)
-    weather_df['date'] = pd.to_datetime(weather_df['date']).dt.strftime('%Y-%m-%d')
-
-    return weather_df
-
-def prepare_weather_week(df):
-    # 1. Standardize types and sort to ensure day0 is the oldest, day6 is the newest
-    df["date"] = pd.to_datetime(df["date"])
-    df = df.sort_values("date", ascending=True).reset_index(drop=True)
-
-    # 2. Define the filling logic
-    fill_values = {
-        "temperature": 22.2,
-        "dewpoint": 5.6,
-        "relativeHumidity": 39.0,
-        "barometricPressure": 1014.9,
-        "precipitationLast3Hours": 0,
-        "windDirection": 0,
-        "windSpeed": 0,
-        "windGust": 0
-    }
-
-    # 3. Apply the fills (handles None/NaN)
-    df = df.fillna(value=fill_values)
-
-    # 4. Define features and pivot
-    feature_cols = [
-        "temperature", "dewpoint", "relativeHumidity", "precipitationLast3Hours",
-        "windDirection", "windSpeed", "windGust", "barometricPressure",
-    ]
-
-    # Create week_id (assuming 7 rows = 1 week)
-    df["week_id"] = 0
-
-    X_weather = (
-        df
-        .set_index(["week_id", df.groupby("week_id").cumcount()])
-        [feature_cols]
-        .unstack()
-    )
-
-    # 5. Rename columns to feature_day0, feature_day1...
-    X_weather.columns = [
-        f"{feature}_day{day}"
-        for feature, day in X_weather.columns
-    ]
-
-    return X_weather
+print(weather_data)
