@@ -257,6 +257,3 @@ def save_station_list(limit: int = 500) -> Optional[List[str]]:
     print(len(output))
     output.to_csv('weather_stations.csv')
 
-weather = request_seven_day_observations('https://api.weather.gov/stations/0007W')
-for w in weather:
-    print(w)
