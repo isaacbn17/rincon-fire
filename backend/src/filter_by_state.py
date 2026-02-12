@@ -28,16 +28,10 @@ def is_in_state(lat: float, lon: float, state_abbr: str) -> bool:
 
 
 if __name__ == "__main__":
-    # Example usage
-    # lat = 40.7608
-    # lon = -111.8910
-    # state_abbr = "UT"
-    # print(is_in_state(lat, lon, state_abbr))  # Should print True for Salt Lake City, UT
-
     # Filter fires.csv in data directory to only include fires in Utah
     base_dir = os.getcwd()
     fire_data = pd.read_csv(base_dir + '\\..\\data\\fires.csv')
-    state_abbr = "UT"
+    state_abbr = "UT" # Change this to the desired state abbreviation
     fire_data['in_state'] = fire_data.apply(lambda row: is_in_state(row['attr_InitialLatitude'], row['attr_InitialLongitude'], state_abbr), axis=1)
     filtered_data = fire_data[fire_data['in_state']]
     filtered_data.to_csv(base_dir + '\\..\\data\\fires_utah.csv', index=False)
