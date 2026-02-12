@@ -10,3 +10,5 @@ pillow
 python-dateutil>=2.9.0
 requests>=2.32.0
 scikit-learn==1.6.1
+geopandas>=0.13.0
+shapely>=2.0.0
