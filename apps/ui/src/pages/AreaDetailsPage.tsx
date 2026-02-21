@@ -85,10 +85,14 @@ export function AreaDetailsPage() {
               <Skeleton className="h-24 w-full" />
             ) : weatherQuery.data ? (
               <div className="space-y-1 text-sm">
-                <div>Temperature: {weatherQuery.data.temperature_c.toFixed(2)} C</div>
-                <div>Humidity: {weatherQuery.data.humidity_pct.toFixed(2)}%</div>
-                <div>Wind Speed: {weatherQuery.data.wind_speed_kph.toFixed(2)} kph</div>
-                <div>Precipitation: {weatherQuery.data.precipitation_mm.toFixed(2)} mm</div>
+                <div>Temperature: {weatherQuery.data.temperature_c?.toFixed(2) ?? "N/A"} C</div>
+                <div>Dewpoint: {weatherQuery.data.dewpoint_c?.toFixed(2) ?? "N/A"} C</div>
+                <div>Humidity: {weatherQuery.data.relative_humidity_pct?.toFixed(2) ?? "N/A"}%</div>
+                <div>Wind Direction: {weatherQuery.data.wind_direction_deg?.toFixed(2) ?? "N/A"} deg</div>
+                <div>Wind Speed: {weatherQuery.data.wind_speed_kph?.toFixed(2) ?? "N/A"} kph</div>
+                <div>Wind Gust: {weatherQuery.data.wind_gust_kph?.toFixed(2) ?? "N/A"} kph</div>
+                <div>Precipitation (3h): {weatherQuery.data.precipitation_3h_mm?.toFixed(2) ?? "N/A"} mm</div>
+                <div>Pressure: {weatherQuery.data.barometric_pressure_pa?.toFixed(2) ?? "N/A"} Pa</div>
                 <div>Observed At: {new Date(weatherQuery.data.observed_at).toISOString()}</div>
               </div>
             ) : (

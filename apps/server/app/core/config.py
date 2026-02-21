@@ -13,8 +13,19 @@ class Settings:
     cors_origins: list[str]
     satellite_dir: Path
     stations_csv_path: Path
+    stations_source_csv_path: Path
+    stations_count: int
     worker_interval_seconds: float
     default_model_id: str
+    noaa_base_url: str
+    noaa_user_agent: str
+    noaa_require_qc: bool
+    noaa_timeout_seconds: float
+    noaa_max_retries: int
+    noaa_backoff_seconds: float
+    rf_model_path: Path
+    rf_default_probability: float
+    rf_threshold: float
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -46,8 +57,16 @@ def get_settings() -> Settings:
         ROOT_DIR / "data" / "satellite",
     )
     stations_csv_path = _resolve_path(
-        os.getenv("STATIONS_CSV_PATH", "data/stations.csv"),
+        os.getenv("STATIONS_CSV_PATH", "data/stations_runtime.csv"),
+        ROOT_DIR / "data" / "stations_runtime.csv",
+    )
+    stations_source_csv_path = _resolve_path(
+        os.getenv("STATIONS_SOURCE_CSV_PATH", "/stations/stations.csv"),
         ROOT_DIR / "data" / "stations.csv",
+    )
+    rf_model_path = _resolve_path(
+        os.getenv("RF_MODEL_PATH", "data/models/rf_baseline_untrained.joblib"),
+        ROOT_DIR / "data" / "models" / "rf_baseline_untrained.joblib",
     )
 
     return Settings(
@@ -56,6 +75,20 @@ def get_settings() -> Settings:
         cors_origins=cors_origins,
         satellite_dir=satellite_dir,
         stations_csv_path=stations_csv_path,
+        stations_source_csv_path=stations_source_csv_path,
+        stations_count=max(int(os.getenv("STATIONS_COUNT", "200")), 1),
         worker_interval_seconds=float(os.getenv("WORKER_INTERVAL_SECONDS", "10")),
         default_model_id=os.getenv("DEFAULT_MODEL_ID", "rf_baseline"),
+        noaa_base_url=os.getenv("NOAA_BASE_URL", "https://api.weather.gov").rstrip("/"),
+        noaa_user_agent=os.getenv(
+            "NOAA_USER_AGENT",
+            "rincon-fire-worker/1.0 (contact: devnull@example.com)",
+        ),
+        noaa_require_qc=_to_bool(os.getenv("NOAA_REQUIRE_QC"), True),
+        noaa_timeout_seconds=float(os.getenv("NOAA_TIMEOUT_SECONDS", "15")),
+        noaa_max_retries=max(int(os.getenv("NOAA_MAX_RETRIES", "3")), 1),
+        noaa_backoff_seconds=float(os.getenv("NOAA_BACKOFF_SECONDS", "1.5")),
+        rf_model_path=rf_model_path,
+        rf_default_probability=float(os.getenv("RF_DEFAULT_PROBABILITY", "0.2")),
+        rf_threshold=float(os.getenv("RF_THRESHOLD", "0.5")),
     )

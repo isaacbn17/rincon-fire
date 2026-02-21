@@ -164,3 +164,8 @@ Backend:
 - There should be a postgres database that stores the weather data, the model predictions, and the satellite image filepaths.
   - the images should be mounted to the docker file system so that they can be accessed by the backend.
 - There should be a background process that gets the weather data for all the weather stations in the list of stations I'll provide as a csv file every 10 seconds and stores it in the database.
+
+
+
+
+/stations/{stationId}/observations

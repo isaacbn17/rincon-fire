@@ -30,7 +30,7 @@ cd server
 uv run python worker.py
 ```
 
-## Docker Compose (API + worker + postgres)
+## Docker Compose (API + worker + postgres + ui)
 
 ```bash
 cd /Users/mattsteffen/projects/llm/rincon-fire/apps
@@ -40,12 +40,14 @@ docker compose up --build
 Services:
 
 - API: `http://localhost:8000`
+- UI: `http://localhost:5173`
 - Postgres: `localhost:5432`
 
 ## API routes
 
 - `GET /api/v1/health`
 - `GET /api/v1/models`
+- `GET /api/v1/stations`
 - `GET /api/v1/fire-areas/top?n=5&model_id=rf_baseline`
 - `GET /api/v1/areas/{area_id}/weather/latest`
 - `GET /api/v1/areas/{area_id}/predictions/latest?model_id=rf_baseline`

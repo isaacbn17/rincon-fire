@@ -25,7 +25,7 @@ def get_fire_areas_top(
     return FireAreasTopResponse(
         items=[
             FireAreaTopItem(
-                area_id=station.area_id,
+                area_id=station.station_id,
                 name=station.name,
                 lat=station.lat,
                 lon=station.lon,

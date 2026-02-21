@@ -23,9 +23,15 @@ def get_area_weather_latest(area_id: str, db: Session = Depends(get_db)) -> Weat
         area_id=area_id,
         observed_at=weather.observed_at,
         temperature_c=weather.temperature_c,
-        humidity_pct=weather.humidity_pct,
+        dewpoint_c=weather.dewpoint_c,
+        relative_humidity_pct=weather.relative_humidity_pct,
+        wind_direction_deg=weather.wind_direction_deg,
         wind_speed_kph=weather.wind_speed_kph,
-        precipitation_mm=weather.precipitation_mm,
+        wind_gust_kph=weather.wind_gust_kph,
+        precipitation_3h_mm=weather.precipitation_3h_mm,
+        barometric_pressure_pa=weather.barometric_pressure_pa,
+        visibility_m=weather.visibility_m,
+        heat_index_c=weather.heat_index_c,
     )
 
 

@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/nws-stations-featurecollection.json",
+  "title": "NWS Stations FeatureCollection",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["@context", "type", "features", "observationStations", "pagination"],
+  "properties": {
+    "@context": {
+      "description": "JSON-LD context (GeoJSON-LD + NWS terms).",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "anyOf": [
+          { "type": "string", "format": "uri" },
+          { "type": "object", "additionalProperties": true }
+        ]
+      }
+    },
+    "type": {
+      "const": "FeatureCollection"
+    },
+    "features": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/feature" }
+    },
+    "observationStations": {
+      "description": "List of station URLs present/related to this collection.",
+      "type": "array",
+      "items": { "type": "string", "format": "uri" }
+    },
+    "pagination": { "$ref": "#/$defs/pagination" }
+  },
+  "$defs": {
+    "pagination": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["next"],
+      "properties": {
+        "next": {
+          "description": "URL for the next page (cursor-based pagination).",
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "feature": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "type", "geometry", "properties"],
+      "properties": {
+        "id": { "type": "string", "format": "uri" },
+        "type": { "const": "Feature" },
+        "geometry": { "$ref": "#/$defs/pointGeometry" },
+        "properties": { "$ref": "#/$defs/stationProperties" }
+      }
+    },
+    "pointGeometry": {
+      "description": "GeoJSON Point geometry for station location.",
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "coordinates"],
+      "properties": {
+        "type": { "const": "Point" },
+        "coordinates": {
+          "description": "[longitude, latitude] in WGS84.",
+          "type": "array",
+          "prefixItems": [
+            { "type": "number", "minimum": -180, "maximum": 180 },
+            { "type": "number", "minimum": -90, "maximum": 90 }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    },
+    "stationProperties": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "@id",
+        "@type",
+        "elevation",
+        "stationIdentifier",
+        "name",
+        "timeZone",
+        "forecast",
+        "county",
+        "fireWeatherZone"
+      ],
+      "properties": {
+        "@id": { "type": "string", "format": "uri" },
+        "@type": {
+          "description": "JSON-LD type; typically wx:ObservationStation.",
+          "type": "string"
+        },
+        "elevation": { "$ref": "#/$defs/quantitativeValue" },
+        "stationIdentifier": {
+          "description": "Short station ID (e.g., 047HE).",
+          "type": "string",
+          "minLength": 1
+        },
+        "name": { "type": "string" },
+        "timeZone": {
+          "description": "IANA time zone name.",
+          "type": "string",
+          "minLength": 1
+        },
+        "forecast": { "type": "string", "format": "uri" },
+        "county": { "type": "string", "format": "uri" },
+        "fireWeatherZone": { "type": "string", "format": "uri" }
+      }
+    },
+    "quantitativeValue": {
+      "description": "NWS uses a schema.org QuantitativeValue-like object for measurements.",
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["unitCode", "value"],
+      "properties": {
+        "unitCode": {
+          "description": "Unit identifier (often wmoUnit:*).",
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "description": "Numeric value (nullable in some NWS payloads).",
+          "anyOf": [{ "type": "number" }, { "type": "null" }]
+        },
+        "qualityControl": {
+          "description": "Sometimes present in other NWS quantitative values.",
+          "type": "string"
+        },
+        "maxValue": { "type": "number" },
+        "minValue": { "type": "number" }
+      }
+    }
+  }
+}

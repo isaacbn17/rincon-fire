@@ -14,9 +14,13 @@ RUN pip install --no-cache-dir --upgrade pip && \
       "psycopg[binary]>=3.2.6" \
       "pydantic>=2.10.6" \
       "python-multipart>=0.0.20" \
-      "pillow>=11.3.0"
+      "pillow>=11.3.0" \
+      "requests>=2.32.0" \
+      "joblib>=1.4.2" \
+      "scikit-learn==1.6.1"
 
 COPY app /app/app
+COPY scripts /app/scripts
 COPY worker.py /app/worker.py
 COPY data /app/data
 COPY main.py /app/main.py

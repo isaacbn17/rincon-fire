@@ -37,10 +37,16 @@ class FireAreasTopResponse(BaseModel):
 class WeatherLatestResponse(BaseModel):
     area_id: str
     observed_at: datetime
-    temperature_c: float
-    humidity_pct: float
-    wind_speed_kph: float
-    precipitation_mm: float
+    temperature_c: float | None
+    dewpoint_c: float | None
+    relative_humidity_pct: float | None
+    wind_direction_deg: float | None
+    wind_speed_kph: float | None
+    wind_gust_kph: float | None
+    precipitation_3h_mm: float | None
+    barometric_pressure_pa: float | None
+    visibility_m: float | None
+    heat_index_c: float | None
 
 
 class PredictionLatestResponse(BaseModel):
@@ -58,3 +64,16 @@ class SatelliteLatestResponse(BaseModel):
     file_path: str
     satellite_url: str
     content_type: str
+
+
+class StationListItem(BaseModel):
+    area_id: str
+    name: str
+    lat: float
+    lon: float
+    latest_observed_at: datetime | None
+    latest_predicted_at: datetime | None
+
+
+class StationsResponse(BaseModel):
+    items: list[StationListItem]

@@ -1,25 +1,52 @@
 from __future__ import annotations
 
 from datetime import datetime
+import logging
 
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.db.models import ModelPrediction, ModelRegistry, SatelliteImage, Station, WeatherObservation
 
+LOGGER = logging.getLogger(__name__)
 
-def upsert_station(db: Session, *, area_id: str, name: str, lat: float, lon: float) -> Station:
-    station = db.execute(select(Station).where(Station.area_id == area_id)).scalar_one_or_none()
+
+def upsert_station(
+    db: Session,
+    *,
+    station_id: str,
+    active: bool = True,
+    name: str,
+    lat: float,
+    lon: float,
+    timezone: str | None = None,
+    elevation_m: float | None = None,
+    source_url: str | None = None,
+) -> Station:
+    station = db.execute(select(Station).where(Station.station_id == station_id)).scalar_one_or_none()
     if station is None:
-        station = Station(area_id=area_id, name=name, lat=lat, lon=lon)
+        station = Station(
+            station_id=station_id,
+            active=active,
+            name=name,
+            lat=lat,
+            lon=lon,
+            timezone=timezone,
+            elevation_m=elevation_m,
+            source_url=source_url,
+        )
         db.add(station)
         db.commit()
         db.refresh(station)
         return station
 
+    station.active = active
     station.name = name
     station.lat = lat
     station.lon = lon
+    station.timezone = timezone
+    station.elevation_m = elevation_m
+    station.source_url = source_url
     db.commit()
     db.refresh(station)
     return station
@@ -29,24 +56,49 @@ def insert_weather(
     db: Session,
     *,
     station_id: int,
+    observation_id: str,
     observed_at: datetime,
-    temperature_c: float,
-    humidity_pct: float,
-    wind_speed_kph: float,
-    precipitation_mm: float,
-) -> WeatherObservation:
+    temperature_c: float | None,
+    dewpoint_c: float | None,
+    relative_humidity_pct: float | None,
+    wind_direction_deg: float | None,
+    wind_speed_kph: float | None,
+    wind_gust_kph: float | None,
+    precipitation_3h_mm: float | None,
+    barometric_pressure_pa: float | None,
+    visibility_m: float | None,
+    heat_index_c: float | None,
+) -> tuple[WeatherObservation, bool]:
+    existing = db.execute(
+        select(WeatherObservation).where(WeatherObservation.observation_id == observation_id)
+    ).scalar_one_or_none()
+    if existing is not None:
+        LOGGER.info(
+            "Skipping duplicate observation for station_id=%s observation_id=%s",
+            station_id,
+            observation_id,
+        )
+        return existing, False
+
     row = WeatherObservation(
         station_id=station_id,
+        observation_id=observation_id,
         observed_at=observed_at,
         temperature_c=temperature_c,
-        humidity_pct=humidity_pct,
+        dewpoint_c=dewpoint_c,
+        relative_humidity_pct=relative_humidity_pct,
+        wind_direction_deg=wind_direction_deg,
         wind_speed_kph=wind_speed_kph,
-        precipitation_mm=precipitation_mm,
+        wind_gust_kph=wind_gust_kph,
+        precipitation_3h_mm=precipitation_3h_mm,
+        barometric_pressure_pa=barometric_pressure_pa,
+        visibility_m=visibility_m,
+        heat_index_c=heat_index_c,
     )
     db.add(row)
     db.commit()
     db.refresh(row)
-    return row
+    return row, True
 
 
 def insert_prediction(
@@ -97,8 +149,28 @@ def list_models(db: Session) -> list[ModelRegistry]:
     return list(db.execute(select(ModelRegistry).order_by(ModelRegistry.model_id)).scalars())
 
 
+def list_stations(db: Session) -> list[Station]:
+    return list(db.execute(select(Station).order_by(Station.station_id)).scalars())
+
+
+def list_active_stations(db: Session) -> list[Station]:
+    return list(
+        db.execute(select(Station).where(Station.active.is_(True)).order_by(Station.station_id)).scalars()
+    )
+
+
+def set_station_active(db: Session, *, station_id: int, active: bool) -> Station | None:
+    station = db.execute(select(Station).where(Station.id == station_id)).scalar_one_or_none()
+    if station is None:
+        return None
+    station.active = active
+    db.commit()
+    db.refresh(station)
+    return station
+
+
 def get_station_by_area_id(db: Session, area_id: str) -> Station | None:
-    return db.execute(select(Station).where(Station.area_id == area_id)).scalar_one_or_none()
+    return db.execute(select(Station).where(Station.station_id == area_id)).scalar_one_or_none()
 
 
 def get_nearest_station(db: Session, *, lat: float, lon: float) -> Station | None:

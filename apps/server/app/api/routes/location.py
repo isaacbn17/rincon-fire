@@ -32,12 +32,18 @@ def get_weather_by_location(
         raise HTTPException(status_code=404, detail="Weather not found for nearest station")
 
     return WeatherLatestResponse(
-        area_id=station.area_id,
+        area_id=station.station_id,
         observed_at=weather.observed_at,
         temperature_c=weather.temperature_c,
-        humidity_pct=weather.humidity_pct,
+        dewpoint_c=weather.dewpoint_c,
+        relative_humidity_pct=weather.relative_humidity_pct,
+        wind_direction_deg=weather.wind_direction_deg,
         wind_speed_kph=weather.wind_speed_kph,
-        precipitation_mm=weather.precipitation_mm,
+        wind_gust_kph=weather.wind_gust_kph,
+        precipitation_3h_mm=weather.precipitation_3h_mm,
+        barometric_pressure_pa=weather.barometric_pressure_pa,
+        visibility_m=weather.visibility_m,
+        heat_index_c=weather.heat_index_c,
     )
 
 
@@ -60,7 +66,7 @@ def get_prediction_by_location(
         raise HTTPException(status_code=404, detail="Prediction not found for nearest station")
 
     return PredictionLatestResponse(
-        area_id=station.area_id,
+        area_id=station.station_id,
         model_id=prediction.model_id,
         predicted_at=prediction.predicted_at,
         probability=prediction.probability,
@@ -85,7 +91,7 @@ def get_satellite_by_location(
 
     url = request.url_for("get_satellite_file", filename=satellite.filename)
     return SatelliteLatestResponse(
-        area_id=station.area_id,
+        area_id=station.station_id,
         captured_at=satellite.captured_at,
         filename=satellite.filename,
         file_path=satellite.file_path,

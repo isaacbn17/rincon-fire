@@ -4,7 +4,6 @@ import csv
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -12,10 +11,8 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.db.bootstrap import init_db
 from app.db.engine import SessionLocal
-from app.db.queries import insert_prediction, insert_satellite, insert_weather, list_models, upsert_station
-from app.providers.predictor import MockPredictionProvider
-from app.providers.satellite import MockSatelliteProvider
-from app.providers.weather import MockWeatherProvider
+from app.db.queries import insert_weather, list_active_stations, set_station_active, upsert_station
+from app.providers.weather import NoaaWeatherProvider
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -24,126 +21,165 @@ LOGGER = logging.getLogger("worker")
 
 @dataclass(frozen=True)
 class StationInput:
-    area_id: str
+    station_id: str
     name: str
     lat: float
     lon: float
+    timezone: str | None
+    elevation_m: float | None
+    source_url: str | None
 
 
-def _default_stations() -> list[StationInput]:
-    return [
-        StationInput(area_id="la_basin", name="Los Angeles Basin", lat=34.0522, lon=-118.2437),
-        StationInput(area_id="sf_bay", name="San Francisco Bay", lat=37.7749, lon=-122.4194),
-        StationInput(area_id="phoenix_metro", name="Phoenix Metro", lat=33.4484, lon=-112.0740),
-        StationInput(area_id="salt_lake", name="Salt Lake City", lat=40.7608, lon=-111.8910),
-        StationInput(area_id="denver_front_range", name="Denver Front Range", lat=39.7392, lon=-104.9903),
-    ]
+def _pick(row: dict[str, str], *keys: str) -> str | None:
+    for key in keys:
+        value = row.get(key)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    return None
 
 
-def load_stations(csv_path: Path) -> list[StationInput]:
-    if not csv_path.exists():
-        LOGGER.warning("Stations CSV missing at %s, using defaults", csv_path)
-        return _default_stations()
+def _parse_float(value: str | None) -> float | None:
+    if value is None or not str(value).strip():
+        return None
+    return float(value)
 
+
+def _load_from_csv(csv_path: Path, limit: int) -> list[StationInput]:
     stations: list[StationInput] = []
     with csv_path.open("r", encoding="utf-8", newline="") as fh:
         reader = csv.DictReader(fh)
-        for index, row in enumerate(reader):
+        for row in reader:
+            station_id = _pick(row, "station_id", "station_identifier", "area_id")
+            lat_raw = _pick(row, "lat", "latitude")
+            lon_raw = _pick(row, "lon", "longitude")
+            if not station_id or lat_raw is None or lon_raw is None:
+                continue
+
             try:
-                area_id = (row.get("area_id") or f"area_{index + 1}").strip()
-                name = (row.get("name") or area_id).strip()
-                lat = float(row["lat"])
-                lon = float(row["lon"])
-                stations.append(StationInput(area_id=area_id, name=name, lat=lat, lon=lon))
-            except Exception as exc:
-                LOGGER.warning("Skipping invalid station row %s: %s", row, exc)
+                station = StationInput(
+                    station_id=station_id,
+                    name=_pick(row, "name") or station_id,
+                    lat=float(lat_raw),
+                    lon=float(lon_raw),
+                    timezone=_pick(row, "timezone"),
+                    elevation_m=_parse_float(_pick(row, "elevation_m", "elevation")),
+                    source_url=_pick(row, "source_url", "url"),
+                )
+                stations.append(station)
+            except ValueError:
+                LOGGER.warning("Skipping invalid station row for station_id=%s", station_id)
 
-    if not stations:
-        LOGGER.warning("No valid stations found in %s, using defaults", csv_path)
-        return _default_stations()
-
+            if len(stations) >= limit:
+                break
     return stations
+
+
+def load_stations(*, runtime_csv_path: Path, source_csv_path: Path, stations_count: int) -> list[StationInput]:
+    if runtime_csv_path.exists():
+        stations = _load_from_csv(runtime_csv_path, stations_count)
+        if stations:
+            return stations
+
+    if source_csv_path.exists():
+        stations = _load_from_csv(source_csv_path, stations_count)
+        if stations:
+            return stations
+
+    raise FileNotFoundError(
+        f"No valid stations found. Checked runtime={runtime_csv_path} source={source_csv_path}"
+    )
 
 
 def run_cycle(
     *,
     db: Session,
-    stations: list[StationInput],
-    weather_provider: MockWeatherProvider,
-    prediction_provider: MockPredictionProvider,
-    satellite_provider: MockSatelliteProvider,
+    weather_provider: NoaaWeatherProvider,
 ) -> None:
-    cycle_time = datetime.now(timezone.utc)
-    models = list_models(db)
-
-    for station_input in stations:
+    active_stations = list_active_stations(db)
+    for station in active_stations:
         try:
-            station = upsert_station(
-                db,
-                area_id=station_input.area_id,
-                name=station_input.name,
-                lat=station_input.lat,
-                lon=station_input.lon,
-            )
-            weather = weather_provider.get_latest(
-                area_id=station.area_id,
-                lat=station.lat,
-                lon=station.lon,
-                observed_at=cycle_time,
-            )
-            insert_weather(
+            weather = weather_provider.get_latest(station_id=station.station_id)
+            if isinstance(weather, int):
+                LOGGER.info("Skipping station_id=%s: status=%s", station.station_id, weather)
+                if weather == 404 or 500 <= weather < 600:
+                    set_station_active(db, station_id=station.id, active=False)
+                    LOGGER.info("Set station inactive station_id=%s due_to_status=%s", station.station_id, weather)
+                continue
+
+            if weather is None:
+                LOGGER.info("Skipping station_id=%s: transient_or_parse_failure", station.station_id)
+                continue
+
+            _, created = insert_weather(
                 db,
                 station_id=station.id,
+                observation_id=weather.observation_id,
                 observed_at=weather.observed_at,
                 temperature_c=weather.temperature_c,
-                humidity_pct=weather.humidity_pct,
+                dewpoint_c=weather.dewpoint_c,
+                relative_humidity_pct=weather.relative_humidity_pct,
+                wind_direction_deg=weather.wind_direction_deg,
                 wind_speed_kph=weather.wind_speed_kph,
-                precipitation_mm=weather.precipitation_mm,
+                wind_gust_kph=weather.wind_gust_kph,
+                precipitation_3h_mm=weather.precipitation_3h_mm,
+                barometric_pressure_pa=weather.barometric_pressure_pa,
+                visibility_m=weather.visibility_m,
+                heat_index_c=weather.heat_index_c,
             )
-
-            for model in models:
-                prediction = prediction_provider.predict(
-                    model_id=model.model_id,
-                    area_id=station.area_id,
-                    weather=weather,
+            if not created:
+                LOGGER.info(
+                    "Skipping duplicate observation for station_id=%s observation_id=%s",
+                    station.station_id,
+                    weather.observation_id,
                 )
-                insert_prediction(
-                    db,
-                    station_id=station.id,
-                    model_id=model.model_id,
-                    predicted_at=cycle_time,
-                    probability=prediction.probability,
-                    label=prediction.label,
-                )
-
-            satellite = satellite_provider.get_latest(
-                area_id=station.area_id,
-                lat=station.lat,
-                lon=station.lon,
-                captured_at=cycle_time,
-            )
-            insert_satellite(
-                db,
-                station_id=station.id,
-                captured_at=satellite.captured_at,
-                filename=satellite.filename,
-                file_path=str(satellite.file_path),
-                content_type=satellite.content_type,
-            )
+                continue
         except Exception:
-            LOGGER.exception("Failed cycle processing for station %s", station_input.area_id)
+            LOGGER.exception("Failed cycle processing for station_id=%s", station.station_id)
+
+
+def sync_stations_from_csv(*, db: Session, stations: list[StationInput]) -> None:
+    for station in stations:
+        upsert_station(
+            db,
+            station_id=station.station_id,
+            active=True,
+            name=station.name,
+            lat=station.lat,
+            lon=station.lon,
+            timezone=station.timezone,
+            elevation_m=station.elevation_m,
+            source_url=station.source_url,
+        )
 
 
 def main() -> None:
     settings = get_settings()
     init_db(reset_db=settings.reset_db_on_start)
 
-    stations = load_stations(settings.stations_csv_path)
-    weather_provider = MockWeatherProvider()
-    prediction_provider = MockPredictionProvider()
-    satellite_provider = MockSatelliteProvider(output_dir=settings.satellite_dir)
+    stations = load_stations(
+        runtime_csv_path=settings.stations_csv_path,
+        source_csv_path=settings.stations_source_csv_path,
+        stations_count=settings.stations_count,
+    )
+    weather_provider = NoaaWeatherProvider(
+        base_url=settings.noaa_base_url,
+        user_agent=settings.noaa_user_agent,
+        require_qc=settings.noaa_require_qc,
+        timeout_seconds=settings.noaa_timeout_seconds,
+        max_retries=settings.noaa_max_retries,
+        backoff_seconds=settings.noaa_backoff_seconds,
+    )
+    db = SessionLocal()
+    try:
+        sync_stations_from_csv(db=db, stations=stations)
+    finally:
+        db.close()
 
-    LOGGER.info("Worker started with %d stations, interval=%ss", len(stations), settings.worker_interval_seconds)
+    LOGGER.info(
+        "Worker started with %d csv stations, interval=%ss",
+        len(stations),
+        settings.worker_interval_seconds,
+    )
 
     while True:
         start = time.monotonic()
@@ -151,10 +187,7 @@ def main() -> None:
         try:
             run_cycle(
                 db=db,
-                stations=stations,
                 weather_provider=weather_provider,
-                prediction_provider=prediction_provider,
-                satellite_provider=satellite_provider,
             )
         finally:
             db.close()

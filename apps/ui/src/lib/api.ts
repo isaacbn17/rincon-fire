@@ -3,6 +3,7 @@ import type {
   ModelsResponse,
   PredictionLatestResponse,
   SatelliteLatestResponse,
+  StationsResponse,
   WeatherLatestResponse,
 } from "@/types/api"
 
@@ -19,6 +20,15 @@ async function apiGet<T>(path: string): Promise<T> {
 
 export function getModels() {
   return apiGet<ModelsResponse>("/api/v1/models")
+}
+
+export function getStations(params?: { modelId?: string }) {
+  const query = new URLSearchParams()
+  if (params?.modelId) {
+    query.set("model_id", params.modelId)
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : ""
+  return apiGet<StationsResponse>(`/api/v1/stations${suffix}`)
 }
 
 export function getTopFireAreas(params: { n?: number; modelId?: string }) {
