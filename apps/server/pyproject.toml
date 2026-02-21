@@ -1,0 +1,28 @@
+[project]
+name = "rincon-fire-server"
+version = "0.1.0"
+description = "FastAPI + worker service for Rincon Fire v1"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.116.1",
+  "uvicorn[standard]>=0.35.0",
+  "sqlalchemy>=2.0.43",
+  "psycopg[binary]>=3.2.6",
+  "pydantic>=2.10.6",
+  "python-multipart>=0.0.20",
+  "pillow>=11.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.5",
+]
+
+[project.scripts]
+rincon-fire-api = "app.run:main"
+rincon-fire-worker = "worker:main"
+
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"

@@ -99,3 +99,68 @@ sleep(10)
 - (perhaps) Presented the idea, justification for why it's important, how you're going to approach this
 
 
+# Matt:
+- Server that gets realtime data from the weather
+- Server that predicts on all models
+- UI that displays the predictions of the various models
+- UI that displays the maps
+- Plans on how to integrate LLMs.
+
+
+## Models to train:
+- Random Forest (baseline)
+- **XGBoost with class imbalances**
+- Image fire detection
+- Embedding models or Temporal Fusion Transformer
+
+### Class of Problems:
+- Anomoly detection
+    - IEF
+    - GANs
+    - **Bayesian detection**
+
+
+**Big training set (1 with class balanced, 1 with class imbalanced)**
+**Less big test set**
+*Could be derived from real time data*
+*Knowing the tradeoffs between model choices*
+
+```python
+Class MyModel():
+    def __init__(self, weights_path: str):
+        pass
+    def predict(self, data):
+        pass
+```
+
+
+```python
+# server running
+from models import MyModel
+model = MyModel(weights_path="weights.pth")
+
+while true:
+    for station in stations:
+        data = get_data(station)
+        prediction = model.predict(data)
+        display(prediction)
+```
+
+
+This repo is going to have a front end, a back end, and then a models directory for various models. Inside the models directory as stated in the bottom of [project-outline.md](project-outline.md) there will be python classes that have ML models. The purpose of this is to display various potential hazardas fire areas. On the UI, in the front end directory, I want you to list out all the features that are currently there, then I'll add all the features I think it should have. Then we will create a plan for how to implement the ui completely. Lets do the same thing for the python server. Leave the models, they will be filled in later.
+
+First thoughts:
+UI
+- show a list of the top 5 most likely fire areas currently from the backend, a list of location, timestamp, probability of fire.
+- Then it shows a map of the globe zoomed to the locations that are in the list with dots symbolizing the location and color as probability of fire.
+- The top should have a model selection where the results of that model are found. This should be a dropdown with the models names as the options.
+- The UI should refresh every 10 seconds and transition smoothly to the new data.
+
+Backend:
+- The backend should have a route that returns the top `N` most likely fire areas currently.
+- The backend should have a route that returns the satellite image for a given location.
+- The backend should have a route that returns the weather data for a given location.
+- The backend should have a route that returns the model predictions for a given location.
+- There should be a postgres database that stores the weather data, the model predictions, and the satellite image filepaths.
+  - the images should be mounted to the docker file system so that they can be accessed by the backend.
+- There should be a background process that gets the weather data for all the weather stations in the list of stations I'll provide as a csv file every 10 seconds and stores it in the database.

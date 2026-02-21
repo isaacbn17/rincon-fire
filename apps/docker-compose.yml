@@ -1,0 +1,59 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rincon_fire
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rincon_fire"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/rincon_fire
+      RESET_DB_ON_START: "true"
+      CORS_ORIGINS: http://localhost:5173
+      SATELLITE_DIR: /app/data/satellite
+      STATIONS_CSV_PATH: /app/data/stations.csv
+      WORKER_INTERVAL_SECONDS: "10"
+      DEFAULT_MODEL_ID: rf_baseline
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - satellite_data:/app/data/satellite
+
+  worker:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/rincon_fire
+      RESET_DB_ON_START: "false"
+      SATELLITE_DIR: /app/data/satellite
+      STATIONS_CSV_PATH: /app/data/stations.csv
+      WORKER_INTERVAL_SECONDS: "10"
+      DEFAULT_MODEL_ID: rf_baseline
+    command: ["python", "worker.py"]
+    volumes:
+      - satellite_data:/app/data/satellite
+
+volumes:
+  pg_data:
+  satellite_data:
