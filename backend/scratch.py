@@ -1,8 +1,9 @@
+from meteostat import Point, hourly
 import requests
 import time
 from typing import Any, Dict, List, Optional
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 
 USER_AGENT = "RinconFire/1.0 (contact: user)"  # set a real contact if you can
 DEFAULT_TIMEOUT = 15  # seconds
@@ -76,7 +77,29 @@ def request_seven_day_observations(station_id_url: str):
             return None
     return out
 
-weather_station_url = "https://api.weather.gov/stations/KAGU1"
-weather_data = request_seven_day_observations(weather_station_url)
+# weather_data = request_seven_day_observations("https://api.weather.gov/stations/KAGU1")
+# print(weather_data)
 
-print(weather_data)
+
+latitude = 41.39848
+longitude = -111.8624
+date_time = datetime.strptime("6/27/2020 18:51", "%m/%d/%Y %H:%M")
+
+date, time_of_day = "6/27/2020 18:51".split(" ")
+
+date = date.split("/")
+time_of_day = time_of_day.split(":")
+
+month = int(date[0])
+day = int(date[1])
+year = int(date[2])
+hour = int(time_of_day[0])
+
+fire_date = datetime(year, month, day, hour)
+fire_week_before_date = fire_date - timedelta(days=6)
+fire_loc = Point(latitude, longitude)
+
+weather = hourly(fire_loc, fire_week_before_date, fire_date).fetch()
+weather_data = weather.fetch()
+
+print(pd.DataFrame(weather_data))

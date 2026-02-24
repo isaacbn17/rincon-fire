@@ -9,7 +9,7 @@ import os
 #   add day [1-7]
 #   request data for date and time then loop through subtracting 1 from day (plan for potential month change or disregard)
 #   request the same series of time 1 year earlier labeled as no fire
-
+    
 base_dir = os.getcwd()
 
 fire_data = pd.read_csv(base_dir + '\\..\\data\\fires.csv')
