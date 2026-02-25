@@ -1,5 +1,5 @@
 /backend/data/db.properties
-*.joblib
+# *.joblib
 .venv/
 venv/
 /.env
