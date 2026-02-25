@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import accuracy_score
@@ -84,7 +85,10 @@ class WildfireNBModel:
     # -------------------------
     # SAVE MODEL
     # -------------------------
-    def save(self, path="wildfire_nb_model.joblib"):
+    def save(self, path="wildfire_nb_model.joblib", max_mb=100):
+        if not path.endswith(".joblib"):
+            path = path + ".joblib"
+            
         joblib.dump(
             {
                 "model": self.model,
@@ -92,7 +96,16 @@ class WildfireNBModel:
             },
             path
         )
-        print("Model saved.")
+
+        size_mb = os.path.getsize(path) / (1024 * 1024)
+        print(f"Model saved to {path} ({size_mb:.2f} MB).")
+
+        if size_mb > max_mb:
+            raise ValueError(
+                f"Saved model is too large ({size_mb:.2f} MB > {max_mb} MB). "
+                "To reduce size, lower n_estimators and/or max_depth."
+            )
+
 
     # -------------------------
     # LOAD MODEL
