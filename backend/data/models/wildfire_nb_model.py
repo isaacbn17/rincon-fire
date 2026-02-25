@@ -84,7 +84,7 @@ class WildfireNBModel:
     # -------------------------
     # SAVE MODEL
     # -------------------------
-    def save(self, path="wildfire_nb_model.pkl"):
+    def save(self, path="wildfire_nb_model.joblib"):
         joblib.dump(
             {
                 "model": self.model,
@@ -97,7 +97,7 @@ class WildfireNBModel:
     # -------------------------
     # LOAD MODEL
     # -------------------------
-    def load(self, path="wildfire_nb_model.pkl"):
+    def load(self, path="wildfire_nb_model.joblib"):
         data = joblib.load(path)
         self.model = data["model"]
         self.feature_columns = data["features"]
@@ -112,8 +112,8 @@ if __name__ == "__main__":
     model = WildfireNBModel()
 
     model.train(
-        train_path="../data/train_set_balanced.csv",
-        test_path="../data/test_set_balanced.csv"
+        train_path="../train_set_balanced.csv",
+        test_path="../test_set_balanced.csv"
     )
 
     model.save()
