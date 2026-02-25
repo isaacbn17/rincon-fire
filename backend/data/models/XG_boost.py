@@ -164,8 +164,8 @@ if __name__ == "__main__":
     model = WildfireXGBoostModel()
 
     model.train(
-        train_path="../train_set_balanced.csv",
-        test_path="../test_set_balanced.csv",
+        train_path="../train_set_unbalanced.csv",
+        test_path="../test_set_unbalanced.csv",
     )
 
     model.save()

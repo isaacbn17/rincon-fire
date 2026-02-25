@@ -88,7 +88,7 @@ class WildfireNBModel:
     def save(self, path="wildfire_nb_model.joblib", max_mb=100):
         if not path.endswith(".joblib"):
             path = path + ".joblib"
-            
+
         joblib.dump(
             {
                 "model": self.model,
@@ -125,8 +125,8 @@ if __name__ == "__main__":
     model = WildfireNBModel()
 
     model.train(
-        train_path="../train_set_balanced.csv",
-        test_path="../test_set_balanced.csv"
+        train_path="../train_set_unbalanced.csv",
+        test_path="../test_set_unbalanced.csv"
     )
 
     model.save()
