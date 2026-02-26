@@ -167,6 +167,53 @@ def request_seven_day_weather(lat: float, lon: float):
             return None
     return out
 
+def extract_weather(weather_data):
+    extracted_weather_data = []
+    for observation in weather_data:
+        properties = observation
+        extracted_weather_data.append({
+            'date': properties.get('timestamp'),
+            'temperature': properties.get('temperature', {}).get('value'),
+            'dewpoint': properties.get('dewpoint', {}).get('value'),
+            'relativeHumidity': properties.get('relativeHumidity', {}).get('value'),
+            'precipitationLast3Hours': properties.get('precipitationLast3Hours', {}).get('value'),
+            'windDirection': properties.get('windDirection', {}).get('value'),
+            'windSpeed': properties.get('windSpeed', {}).get('value'),
+            'windGust': properties.get('windGust', {}).get('value'),
+            'barometricPressure': properties.get('barometricPressure', {}).get('value'),
+        })
+
+    weather_df = pd.DataFrame(extracted_weather_data)
+    weather_df['date'] = pd.to_datetime(weather_df['date']).dt.strftime('%Y-%m-%d')
+
+    return weather_df
+
+def get_formatted_weather_data(station_url: str):
+    weather_data = request_seven_day_observations(station_url)
+    print(weather_data)
+    weather_data = extract_weather(weather_data)
+
+    date = weather_data.iloc[0]['date']
+    weather_row = pd.Series([])
+
+    weather_data = weather_data.drop('date', axis=1)
+
+    for i, weather_day in weather_data.iterrows():
+        weather_row = pd.concat([weather_day, weather_row])
+
+    weather_row = pd.concat([pd.Series([date]), weather_row])
+
+    cols = ['temperature', 'dewpoint', 'relative_humidity', 'precipitation', 'wind_direction', 'wind_speed',
+            'wind_gust', 'air_pressure']
+
+    final_cols = ['date_time']
+    for i in range(1, 8):
+        for col in cols:
+            final_cols.append(col + '_' + str(i))
+    weather_row = weather_row.to_numpy()
+    formatted_data_df = pd.DataFrame([weather_row], columns=final_cols)
+    return formatted_data_df
+
 
 def get_all_station_observations(station_id_list: List[str], latest_only: bool = True) -> Dict[str, Dict[str, Any]]:
     """Loop over station IDs and collect observations."""
