@@ -1,0 +1,11 @@
+station_url,latitude,longitude,fire_probability
+https://api.weather.gov/stations/ABAUT,37.84107,-109.46188,0.0023342741187661886
+https://api.weather.gov/stations/ABGUT,40.71048,-111.56131,0.0027909334748983383
+https://api.weather.gov/stations/AGD,40.5905,-111.638,0.0005052463384345174
+https://api.weather.gov/stations/AGUU1,37.52217,-112.27118,0.04358609765768051
+https://api.weather.gov/stations/ALT,40.571,-111.631,0.000611065945122391
+https://api.weather.gov/stations/ALTU1,37.4402,-112.4819,0.02536250464618206
+https://api.weather.gov/stations/AMB,40.5677,-111.6374,0.0016551479930058122
+https://api.weather.gov/stations/AMFKM,40.3401,-111.80104,0.005138182546943426
+https://api.weather.gov/stations/AP611,40.98083,-111.90417,0.002004080917686224
+https://api.weather.gov/stations/AR551,41.71431,-111.97509,0.009711507707834244

@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 import pandas as pd
 import joblib
@@ -106,38 +107,58 @@ class WildfireXGBoostModel:
     # PREDICT
     # -------------------------
     def predict(self):
-        weather_stations_path = "..\weather_stations_utah_valid.csv"
-        weather_stations_df = pd.read_csv(weather_stations_path)
-        print("Loaded weather data for prediction:", weather_stations_df.head())
-
-        for station in weather_stations_df["station_url"]:
-            print(f"Processing station: {station}")
-            formatted_weather_df = get_formatted_weather_data(station)
-            break
-
-        print("Formatted weather data for prediction:", formatted_weather_df.head())
-
-        # Ensure columns match training features
+        # Ensure model is loaded
         if self.feature_columns is None:
             raise RuntimeError("Model has not been trained/loaded (feature_columns is None).")
+        
+        print("Loading weather stations for prediction...\n")
+        weather_stations_path = "..\weather_stations_utah_valid.csv"
+        weather_stations_df = pd.read_csv(weather_stations_path)
 
-        print("Expected feature columns:", self.feature_columns)
-        print("Actual columns in formatted data:", formatted_weather_df.columns.tolist())
-        # Add any missing columns as 0
-        # for col in self.feature_columns:
-        #     if col not in df.columns:
-        #         df[col] = 0
+        results = []
 
-        # df = df[self.feature_columns]
+        print("Predicting wildfire risk for weather stations...\n")
+        count = 0
+        for _, row in weather_stations_df.iterrows():
+            station = row["station_url"]
+            latitude = row["latitude"]
+            longitude = row["longitude"]
 
-        # # Coerce numeric + fill
-        # for c in self.feature_columns:
-        #     df[c] = pd.to_numeric(df[c], errors="coerce")
-        # df = df.fillna(0)
+            print(f"Processing station: {station}")
 
-        # prediction = int(self.model.predict(df)[0])
-        # probability = float(self.model.predict_proba(df)[0][1])
-        # return prediction, probability
+            try:
+                formatted_weather_df = get_formatted_weather_data(station)
+            except Exception as e:
+                print(f"Error fetching data for station {station}: {e}\n")
+                continue
+
+            # Ensure numeric + fill
+            for c in self.feature_columns:
+                formatted_weather_df[c] = pd.to_numeric(formatted_weather_df[c], errors="coerce")
+            formatted_weather_df = formatted_weather_df.fillna(0)
+
+            prediction = int(self.model.predict(formatted_weather_df[self.feature_columns])[0])
+            probability = float(self.model.predict_proba(formatted_weather_df[self.feature_columns])[0][1])
+            print(f"Predicted has_fire: {prediction} with probability {probability:.4f}\n")
+
+            results.append({
+                "station_url": station,
+                "latitude": latitude,
+                "longitude": longitude,
+                "fire_probability": probability
+            })
+
+            count += 1
+            if count >= 10:
+                break
+
+        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        output_path = Path(f"../model_predictions/fire_predictions_{date_str}.csv")
+
+        results_df = pd.DataFrame(results, columns=["station_url", "latitude", "longitude", "fire_probability"])
+        results_df.to_csv(output_path, index=False)
+
+        print(f"\nSaved predictions to {output_path.resolve()}")
 
     # -------------------------
     # SAVE MODEL
@@ -175,19 +196,18 @@ class WildfireXGBoostModel:
 
 
 if __name__ == "__main__":
-    # model = WildfireXGBoostModel()
-
-    # model.load()
-
-    # model.predict()
-
-
-    # The commented code below is for training and saving the model.
     model = WildfireXGBoostModel()
 
-    model.train(
-        train_path="../train_set_unbalanced.csv",
-        test_path="../test_set_unbalanced.csv",
-    )
+    model.load("unbalanced_xgb_model.joblib")
 
-    model.save("unbalanced_xgb_model.joblib")
+    model.predict()
+
+    # The commented code below is for training and saving the model.
+    # model = WildfireXGBoostModel()
+
+    # model.train(
+    #     train_path="../train_set_unbalanced.csv",
+    #     test_path="../test_set_unbalanced.csv",
+    # )
+
+    # model.save("unbalanced_xgb_model.joblib")
