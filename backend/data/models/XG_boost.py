@@ -1,9 +1,15 @@
 import os
+import sys
+from pathlib import Path
 import pandas as pd
 import joblib
 
 from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.append(str(ROOT))
+from src.api_helpers import get_formatted_weather_data
 
 
 class WildfireXGBoostModel:
@@ -99,33 +105,44 @@ class WildfireXGBoostModel:
     # -------------------------
     # PREDICT
     # -------------------------
-    def predict(self, feature_row: dict):
-        df = pd.DataFrame([feature_row])
+    def predict(self):
+        weather_stations_path = "..\weather_stations_utah_valid.csv"
+        weather_stations_df = pd.read_csv(weather_stations_path)
+        print("Loaded weather data for prediction:", weather_stations_df.head())
+
+        for station in weather_stations_df["station_url"]:
+            print(f"Processing station: {station}")
+            formatted_weather_df = get_formatted_weather_data(station)
+            break
+
+        print("Formatted weather data for prediction:", formatted_weather_df.head())
 
         # Ensure columns match training features
         if self.feature_columns is None:
             raise RuntimeError("Model has not been trained/loaded (feature_columns is None).")
 
+        print("Expected feature columns:", self.feature_columns)
+        print("Actual columns in formatted data:", formatted_weather_df.columns.tolist())
         # Add any missing columns as 0
-        for col in self.feature_columns:
-            if col not in df.columns:
-                df[col] = 0
+        # for col in self.feature_columns:
+        #     if col not in df.columns:
+        #         df[col] = 0
 
-        df = df[self.feature_columns]
+        # df = df[self.feature_columns]
 
-        # Coerce numeric + fill
-        for c in self.feature_columns:
-            df[c] = pd.to_numeric(df[c], errors="coerce")
-        df = df.fillna(0)
+        # # Coerce numeric + fill
+        # for c in self.feature_columns:
+        #     df[c] = pd.to_numeric(df[c], errors="coerce")
+        # df = df.fillna(0)
 
-        prediction = int(self.model.predict(df)[0])
-        probability = float(self.model.predict_proba(df)[0][1])
-        return prediction, probability
+        # prediction = int(self.model.predict(df)[0])
+        # probability = float(self.model.predict_proba(df)[0][1])
+        # return prediction, probability
 
     # -------------------------
     # SAVE MODEL
     # -------------------------
-    def save(self, path="wildfire_xgb_model.joblib", max_mb=100):
+    def save(self, path="xgb_model.joblib", max_mb=100):
         if not path.endswith(".joblib"):
             path = path + ".joblib"
 
@@ -150,22 +167,27 @@ class WildfireXGBoostModel:
     # -------------------------
     # LOAD MODEL
     # -------------------------
-    def load(self, path="wildfire_xgb_model.joblib"):
+    def load(self, path="xgb_model.joblib"):
         data = joblib.load(path)
         self.model = data["model"]
         self.feature_columns = data["features"]
         print("Model loaded.")
 
 
-# -------------------------------------------------
-# RUN TRAINING DIRECTLY
-# -------------------------------------------------
 if __name__ == "__main__":
     model = WildfireXGBoostModel()
 
-    model.train(
-        train_path="../train_set_unbalanced.csv",
-        test_path="../test_set_unbalanced.csv",
-    )
+    model.load()
 
-    model.save()
+    model.predict()
+
+
+    # The commented code below is for training and saving the model.
+    # model = WildfireXGBoostModel()
+
+    # model.train(
+    #     train_path="../train_set_balanced_no_snow.csv",
+    #     test_path="../test_set_balanced_no_snow.csv",
+    # )
+
+    # model.save()

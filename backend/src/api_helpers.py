@@ -190,7 +190,7 @@ def extract_weather(weather_data):
 
 def get_formatted_weather_data(station_url: str):
     weather_data = request_seven_day_observations(station_url)
-    print(weather_data)
+    # print(weather_data)
     weather_data = extract_weather(weather_data)
 
     date = weather_data.iloc[0]['date']
@@ -201,12 +201,12 @@ def get_formatted_weather_data(station_url: str):
     for i, weather_day in weather_data.iterrows():
         weather_row = pd.concat([weather_day, weather_row])
 
-    weather_row = pd.concat([pd.Series([date]), weather_row])
+    # weather_row = pd.concat([pd.Series([date]), weather_row])
 
     cols = ['temperature', 'dewpoint', 'relative_humidity', 'precipitation', 'wind_direction', 'wind_speed',
             'wind_gust', 'air_pressure']
 
-    final_cols = ['date_time']
+    final_cols = []
     for i in range(1, 8):
         for col in cols:
             final_cols.append(col + '_' + str(i))
