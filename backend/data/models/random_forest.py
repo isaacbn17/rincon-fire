@@ -147,10 +147,9 @@ class WildfireRFModel:
 if __name__ == "__main__":
     model = WildfireRFModel()
 
-    # Robust paths relative to THIS file (prevents CWD issues)
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    train_path = os.path.join(base_dir, "..", "train_set_balanced.csv")
-    test_path = os.path.join(base_dir, "..", "test_set_balanced.csv")
+    model.train(
+        train_path="../train_set_balanced.csv",
+        test_path="../test_set_balanced.csv",
+    )
 
-    model.train(train_path=train_path, test_path=test_path)
-    model.save()
+    model.save("balanced_rf_model.joblib")

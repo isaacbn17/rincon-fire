@@ -175,19 +175,19 @@ class WildfireXGBoostModel:
 
 
 if __name__ == "__main__":
-    model = WildfireXGBoostModel()
+    # model = WildfireXGBoostModel()
 
-    model.load()
+    # model.load()
 
-    model.predict()
+    # model.predict()
 
 
     # The commented code below is for training and saving the model.
-    # model = WildfireXGBoostModel()
+    model = WildfireXGBoostModel()
 
-    # model.train(
-    #     train_path="../train_set_balanced_no_snow.csv",
-    #     test_path="../test_set_balanced_no_snow.csv",
-    # )
+    model.train(
+        train_path="../train_set_unbalanced.csv",
+        test_path="../test_set_unbalanced.csv",
+    )
 
-    # model.save()
+    model.save("unbalanced_xgb_model.joblib")
