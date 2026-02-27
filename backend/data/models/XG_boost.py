@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 import pandas as pd
@@ -130,6 +131,7 @@ class WildfireXGBoostModel:
                 formatted_weather_df = get_formatted_weather_data(station)
             except Exception as e:
                 print(f"Error fetching data for station {station}: {e}\n")
+                count += 1
                 continue
 
             # Ensure numeric + fill
@@ -145,17 +147,18 @@ class WildfireXGBoostModel:
                 "station_url": station,
                 "latitude": latitude,
                 "longitude": longitude,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "fire_probability": probability
             })
 
             count += 1
-            if count >= 10:
-                break
+            # if count >= 5:
+            #     break
 
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         output_path = Path(f"../model_predictions/fire_predictions_{date_str}.csv")
 
-        results_df = pd.DataFrame(results, columns=["station_url", "latitude", "longitude", "fire_probability"])
+        results_df = pd.DataFrame(results, columns=["station_url", "latitude", "longitude", "timestamp", "fire_probability"])
         results_df.to_csv(output_path, index=False)
 
         print(f"\nSaved predictions to {output_path.resolve()}")
@@ -200,7 +203,10 @@ if __name__ == "__main__":
 
     model.load("unbalanced_xgb_model.joblib")
 
+    start = time.perf_counter()
     model.predict()
+    end = time.perf_counter()
+    print(f"Execution time: {end - start:.6f} seconds")
 
     # The commented code below is for training and saving the model.
     # model = WildfireXGBoostModel()
