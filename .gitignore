@@ -5,6 +5,7 @@ venv/
 /.env
 /outputs
 /apps/server/data/stations_runtime.csv
+stations/stations.csv
 
 # Python bytecode
 __pycache__/

@@ -24,7 +24,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/rincon_fire
-      RESET_DB_ON_START: "true"
+      RESET_DB_ON_START: "false"
       CORS_ORIGINS: http://localhost:5173
       SATELLITE_DIR: /app/data/satellite
       STATIONS_CSV_PATH: /app/data/stations_runtime.csv
@@ -49,6 +49,18 @@ services:
       ]
     ports:
       - "8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=2)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
     volumes:
       - satellite_data:/app/data/satellite
       - ../stations:/stations:ro
@@ -61,7 +73,7 @@ services:
       postgres:
         condition: service_healthy
       server:
-        condition: service_started
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/rincon_fire
       RESET_DB_ON_START: "false"
@@ -95,7 +107,8 @@ services:
       context: ./ui
       dockerfile: Dockerfile
     depends_on:
-      - server
+      server:
+        condition: service_healthy
     environment:
       VITE_API_BASE_URL: http://localhost:8000
     ports:

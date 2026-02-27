@@ -4,6 +4,7 @@ import csv
 import logging
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -11,8 +12,15 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.db.bootstrap import init_db
 from app.db.engine import SessionLocal
-from app.db.queries import insert_weather, list_active_stations, set_station_active, upsert_station
-from app.providers.weather import NoaaWeatherProvider
+from app.db.queries import (
+    insert_prediction,
+    insert_weather,
+    list_active_stations,
+    set_station_active,
+    upsert_station,
+)
+from app.providers.predictor import RandomForestFallbackPredictionProvider
+from app.providers.weather import NoaaWeatherProvider, WeatherObservationInput
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -94,6 +102,8 @@ def run_cycle(
     *,
     db: Session,
     weather_provider: NoaaWeatherProvider,
+    predictor: RandomForestFallbackPredictionProvider,
+    default_model_id: str,
 ) -> None:
     active_stations = list_active_stations(db)
     for station in active_stations:
@@ -132,7 +142,38 @@ def run_cycle(
                     station.station_id,
                     weather.observation_id,
                 )
-                continue
+
+            prediction = predictor.predict(
+                model_id=default_model_id,
+                area_id=station.station_id,
+                weather=WeatherObservationInput(
+                    observation_id=weather.observation_id,
+                    station_id=weather.station_id,
+                    station_name=weather.station_name,
+                    observed_at=weather.observed_at,
+                    temperature_c=weather.temperature_c,
+                    dewpoint_c=weather.dewpoint_c,
+                    relative_humidity_pct=weather.relative_humidity_pct,
+                    wind_direction_deg=weather.wind_direction_deg,
+                    wind_speed_kph=weather.wind_speed_kph,
+                    wind_gust_kph=weather.wind_gust_kph,
+                    precipitation_3h_mm=weather.precipitation_3h_mm,
+                    barometric_pressure_pa=weather.barometric_pressure_pa,
+                    visibility_m=weather.visibility_m,
+                    heat_index_c=weather.heat_index_c,
+                    latitude=station.lat,
+                    longitude=station.lon,
+                    elevation_m=station.elevation_m,
+                ),
+            )
+            insert_prediction(
+                db,
+                station_id=station.id,
+                model_id=default_model_id,
+                predicted_at=datetime.now(timezone.utc),
+                probability=prediction.probability,
+                label=prediction.label,
+            )
         except Exception:
             LOGGER.exception("Failed cycle processing for station_id=%s", station.station_id)
 
@@ -169,6 +210,11 @@ def main() -> None:
         max_retries=settings.noaa_max_retries,
         backoff_seconds=settings.noaa_backoff_seconds,
     )
+    predictor = RandomForestFallbackPredictionProvider(
+        model_path=settings.rf_model_path,
+        default_probability=settings.rf_default_probability,
+        threshold=settings.rf_threshold,
+    )
     db = SessionLocal()
     try:
         sync_stations_from_csv(db=db, stations=stations)
@@ -188,6 +234,8 @@ def main() -> None:
             run_cycle(
                 db=db,
                 weather_provider=weather_provider,
+                predictor=predictor,
+                default_model_id=settings.default_model_id,
             )
         finally:
             db.close()
