@@ -118,13 +118,13 @@ class WildfireXGBoostModel:
         results = []
 
         print("Predicting wildfire risk for weather stations...\n")
-        count = 0
+        count = 1
         for _, row in weather_stations_df.iterrows():
             station = row["station_url"]
             latitude = row["latitude"]
             longitude = row["longitude"]
 
-            print(f"Processing station: {station}")
+            print(f"{count}/1257 Processing station: {station}")
 
             try:
                 formatted_weather_df = get_formatted_weather_data(station)
