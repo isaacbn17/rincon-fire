@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
@@ -12,13 +14,17 @@ from app.services.weather import get_latest_weather
 
 
 router = APIRouter(prefix="/areas", tags=["areas"])
+LOGGER = logging.getLogger(__name__)
 
 
 @router.get("/{area_id}/weather/latest", response_model=WeatherLatestResponse)
 def get_area_weather_latest(area_id: str, db: Session = Depends(get_db)) -> WeatherLatestResponse:
+    LOGGER.debug("event=api.area_weather.request area_id=%s", area_id)
     weather = get_latest_weather(db, area_id=area_id)
     if weather is None:
+        LOGGER.debug("event=api.area_weather.response area_id=%s found=false rows_returned=0", area_id)
         raise HTTPException(status_code=404, detail="Area weather not found")
+    LOGGER.debug("event=api.area_weather.response area_id=%s found=true rows_returned=1", area_id)
     return WeatherLatestResponse(
         area_id=area_id,
         observed_at=weather.observed_at,
@@ -43,9 +49,20 @@ def get_area_prediction_latest(
 ) -> PredictionLatestResponse:
     settings = get_settings()
     chosen_model = model_id or settings.default_model_id
+    LOGGER.debug("event=api.area_prediction.request area_id=%s model_id=%s", area_id, chosen_model)
     prediction = get_latest_prediction(db, area_id=area_id, model_id=chosen_model)
     if prediction is None:
+        LOGGER.debug(
+            "event=api.area_prediction.response area_id=%s model_id=%s found=false rows_returned=0",
+            area_id,
+            chosen_model,
+        )
         raise HTTPException(status_code=404, detail="Area prediction not found")
+    LOGGER.debug(
+        "event=api.area_prediction.response area_id=%s model_id=%s found=true rows_returned=1",
+        area_id,
+        chosen_model,
+    )
     return PredictionLatestResponse(
         area_id=area_id,
         model_id=prediction.model_id,
@@ -61,11 +78,14 @@ def get_area_satellite_latest(
     request: Request,
     db: Session = Depends(get_db),
 ) -> SatelliteLatestResponse:
+    LOGGER.debug("event=api.area_satellite.request area_id=%s", area_id)
     satellite = get_latest_satellite(db, area_id=area_id)
     if satellite is None:
+        LOGGER.debug("event=api.area_satellite.response area_id=%s found=false rows_returned=0", area_id)
         raise HTTPException(status_code=404, detail="Area satellite image not found")
 
     url = request.url_for("get_satellite_file", filename=satellite.filename)
+    LOGGER.debug("event=api.area_satellite.response area_id=%s found=true rows_returned=1", area_id)
     return SatelliteLatestResponse(
         area_id=area_id,
         captured_at=satellite.captured_at,

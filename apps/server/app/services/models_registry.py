@@ -5,15 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import ModelRegistry
+from app.services.model_runtime import default_model_registry_rows
 
 
-DEFAULT_MODELS = [
-    {
-        "model_id": "rf_baseline",
-        "name": "Random Forest (Untrained Fallback)",
-        "description": "Untrained RandomForest initialized for wiring checks; emits fallback probability.",
-    },
-]
+DEFAULT_MODELS = default_model_registry_rows()
 
 
 def seed_models(db: Session) -> None:

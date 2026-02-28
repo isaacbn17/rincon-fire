@@ -120,6 +120,15 @@ def insert_prediction(
     db.add(row)
     db.commit()
     db.refresh(row)
+    LOGGER.debug(
+        "event=prediction.inserted prediction_id=%s station_id=%s model_id=%s probability=%.6f label=%s predicted_at=%s",
+        row.id,
+        row.station_id,
+        row.model_id,
+        row.probability,
+        row.label,
+        row.predicted_at.isoformat(),
+    )
     return row
 
 
@@ -146,7 +155,9 @@ def insert_satellite(
 
 
 def list_models(db: Session) -> list[ModelRegistry]:
-    return list(db.execute(select(ModelRegistry).order_by(ModelRegistry.model_id)).scalars())
+    models = list(db.execute(select(ModelRegistry).order_by(ModelRegistry.model_id)).scalars())
+    LOGGER.debug("event=models.list count=%s", len(models))
+    return models
 
 
 def list_stations(db: Session) -> list[Station]:
@@ -208,7 +219,14 @@ def get_latest_prediction_for_station(
         .order_by(desc(ModelPrediction.predicted_at))
         .limit(1)
     )
-    return db.execute(stmt).scalar_one_or_none()
+    prediction = db.execute(stmt).scalar_one_or_none()
+    LOGGER.debug(
+        "event=prediction.latest.query station_id=%s model_id=%s found=%s",
+        station_id,
+        model_id,
+        prediction is not None,
+    )
+    return prediction
 
 
 def get_latest_satellite_for_station(db: Session, station_id: int) -> SatelliteImage | None:
@@ -233,6 +251,12 @@ def get_top_fire_areas(
         .where(ModelPrediction.model_id == model_id)
         .order_by(desc(ModelPrediction.predicted_at))
     ).all()
+    LOGGER.debug(
+        "event=fire_areas.top.query model_id=%s requested_n=%s raw_rows=%s",
+        model_id,
+        n,
+        len(rows),
+    )
 
     latest_by_station: dict[int, tuple[Station, ModelPrediction]] = {}
     for station, prediction in rows:
@@ -244,4 +268,45 @@ def get_top_fire_areas(
         key=lambda item: (item[1].probability, item[1].predicted_at),
         reverse=True,
     )
-    return ordered[:n]
+    result = ordered[:n]
+    LOGGER.debug(
+        "event=fire_areas.top.result model_id=%s requested_n=%s latest_station_rows=%s returned_rows=%s",
+        model_id,
+        n,
+        len(latest_by_station),
+        len(result),
+    )
+    return result
+
+
+def get_compare_fire_areas(
+    db: Session,
+    *,
+    n_per_model: int,
+) -> tuple[list[ModelRegistry], list[tuple[Station, dict[str, ModelPrediction | None]]]]:
+    models = list_models(db)
+    if not models:
+        return [], []
+
+    stations_by_id: dict[int, Station] = {}
+    for model in models:
+        top_rows = get_top_fire_areas(db, n=n_per_model, model_id=model.model_id)
+        for station, _ in top_rows:
+            stations_by_id[station.id] = station
+
+    if not stations_by_id:
+        return models, []
+
+    model_ids = [model.model_id for model in models]
+    compare_rows: list[tuple[Station, dict[str, ModelPrediction | None]]] = []
+    for station in stations_by_id.values():
+        predictions_by_model: dict[str, ModelPrediction | None] = {}
+        for model_id in model_ids:
+            predictions_by_model[model_id] = get_latest_prediction_for_station(
+                db,
+                station_id=station.id,
+                model_id=model_id,
+            )
+        compare_rows.append((station, predictions_by_model))
+
+    return models, compare_rows

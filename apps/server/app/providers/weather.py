@@ -104,6 +104,9 @@ class WeatherProvider:
     def get_latest(self, *, station_id: str) -> WeatherObservationInput | int | None:
         raise NotImplementedError
 
+    def get_recent_observations(self, *, station_id: str, days: int = 7) -> list[WeatherObservationInput] | int | None:
+        raise NotImplementedError
+
 
 class NoaaWeatherProvider(WeatherProvider):
     def __init__(
@@ -125,9 +128,13 @@ class NoaaWeatherProvider(WeatherProvider):
         self.backoff_seconds = backoff_seconds
         self.session = session or requests.Session()
 
-    def get_latest(self, *, station_id: str) -> WeatherObservationInput | int | None:
-        url = f"{self.base_url}/stations/{station_id}/observations/latest"
-        params = {"require_qc": str(self.require_qc).lower()}
+    def _request(
+        self,
+        *,
+        url: str,
+        station_id: str,
+        params: dict[str, str] | None = None,
+    ) -> requests.Response | int | None:
         headers = {
             "accept": "application/geo+json",
             "User-Agent": self.user_agent,
@@ -149,35 +156,100 @@ class NoaaWeatherProvider(WeatherProvider):
                 return None
 
             if response.status_code == 404:
-                LOGGER.info("No latest observation for station_id=%s (404)", station_id)
                 return response.status_code
 
             if response.status_code == 429 or 500 <= response.status_code < 600:
                 if attempt < self.max_retries:
                     time.sleep(self.backoff_seconds ** attempt)
                     continue
-                LOGGER.warning(
-                    "NOAA request exhausted retries for station_id=%s status=%s",
-                    station_id,
-                    response.status_code,
-                )
                 return response.status_code
 
             if response.status_code != 200:
+                body_preview = (getattr(response, "text", "") or "").strip().replace("\n", " ")
+                if len(body_preview) > 240:
+                    body_preview = f"{body_preview[:240]}..."
                 LOGGER.warning(
-                    "NOAA request returned non-success for station_id=%s status=%s",
+                    "NOAA request non-200 for station_id=%s status=%s url=%s params=%s body=%s",
                     station_id,
                     response.status_code,
+                    url,
+                    params,
+                    body_preview,
                 )
                 return response.status_code
 
-            try:
-                payload = response.json()
-                parsed = NwsLatestObservation.model_validate(payload)
-            except (ValueError, ValidationError):
-                LOGGER.warning("NOAA payload parse failed for station_id=%s", station_id)
-                return None
-
-            return to_weather_input(parsed)
+            return response
 
         return None
+
+    def get_latest(self, *, station_id: str) -> WeatherObservationInput | int | None:
+        url = f"{self.base_url}/stations/{station_id}/observations/latest"
+        params = {"require_qc": str(self.require_qc).lower()}
+        response = self._request(url=url, station_id=station_id, params=params)
+        if response is None or isinstance(response, int):
+            if response == 404:
+                LOGGER.info("No latest observation for station_id=%s (404)", station_id)
+            return response
+
+        try:
+            payload = response.json()
+            parsed = NwsLatestObservation.model_validate(payload)
+        except (ValueError, ValidationError):
+            LOGGER.warning("NOAA latest payload parse failed for station_id=%s", station_id)
+            return None
+
+        return to_weather_input(parsed)
+
+    def get_recent_observations(self, *, station_id: str, days: int = 7) -> list[WeatherObservationInput] | int | None:
+        if days <= 0:
+            return []
+
+        params = {"limit": "500"}
+        next_url = f"{self.base_url}/stations/{station_id}/observations"
+        next_params = params
+
+        target_hour: int | None = None
+        seen_dates: set[str] = set()
+        picked: list[WeatherObservationInput] = []
+
+        while next_url and len(picked) < days:
+            response = self._request(url=next_url, station_id=station_id, params=next_params)
+            next_params = None
+            if response is None or isinstance(response, int):
+                return response
+
+            try:
+                payload = response.json()
+            except ValueError:
+                LOGGER.warning("NOAA observations payload parse failed for station_id=%s", station_id)
+                return None
+
+            features = payload.get("features", [])
+            for feature in features:
+                try:
+                    parsed = NwsLatestObservation.model_validate(feature)
+                except ValidationError:
+                    continue
+                obs = to_weather_input(parsed)
+
+                if target_hour is None:
+                    target_hour = obs.observed_at.hour
+                if obs.observed_at.hour != target_hour:
+                    continue
+
+                date_key = obs.observed_at.date().isoformat()
+                if date_key in seen_dates:
+                    continue
+                seen_dates.add(date_key)
+                picked.append(obs)
+                if len(picked) >= days:
+                    break
+
+            pagination = payload.get("pagination") or {}
+            next_url = pagination.get("next")
+
+        if not picked:
+            return None
+
+        picked.sort(key=lambda item: item.observed_at)
+        return picked[-days:]

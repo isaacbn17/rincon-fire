@@ -1,0 +1,12 @@
+.git
+**/__pycache__/
+**/.pytest_cache/
+**/.venv/
+**/.env
+**/node_modules/
+
+# Keep model artifacts and code, but skip large datasets in build context.
+backend/data/**/*.csv
+backend/data/archive/**
+backend/data/images/**
+backend/data/model_predictions/**

@@ -3,10 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-import joblib
-from sklearn.ensemble import RandomForestClassifier
-
-from app.providers.weather import WeatherObservationInput
+from app.services.model_runtime import BackendModelsRuntime
 
 
 @dataclass(frozen=True)
@@ -16,36 +13,34 @@ class PredictionOutput:
 
 
 class PredictionProvider:
-    def predict(self, *, model_id: str, area_id: str, weather: WeatherObservationInput) -> PredictionOutput:
+    def predict(self, *, model_id: str, area_id: str, feature_row: dict[str, float]) -> PredictionOutput:
+        raise NotImplementedError
+
+    def available_model_ids(self) -> list[str]:
         raise NotImplementedError
 
 
-class RandomForestFallbackPredictionProvider(PredictionProvider):
+class MultiModelPredictionProvider(PredictionProvider):
     def __init__(
         self,
         *,
-        model_path: Path,
-        default_probability: float = 0.2,
+        model_artifact_dir: Path,
+        enabled_model_ids: list[str],
         threshold: float = 0.5,
+        runtime: BackendModelsRuntime | None = None,
     ):
-        self.model_path = model_path
-        self.default_probability = min(max(default_probability, 0.0), 1.0)
+        self.model_artifact_dir = model_artifact_dir
         self.threshold = threshold
-        self._model_checked = False
+        self.runtime = runtime or BackendModelsRuntime(
+            model_artifact_dir=model_artifact_dir,
+            enabled_model_ids=enabled_model_ids,
+        )
 
-    def _ensure_model_artifact(self) -> None:
-        if self._model_checked:
-            return
-        if not self.model_path.exists():
-            raise FileNotFoundError(f"Missing RF model artifact at {self.model_path}")
-        model = joblib.load(self.model_path)
-        if not isinstance(model, RandomForestClassifier):
-            raise TypeError(f"Unexpected RF model artifact type: {type(model)}")
-        self._model_checked = True
+    def available_model_ids(self) -> list[str]:
+        return self.runtime.available_model_ids()
 
-    def predict(self, *, model_id: str, area_id: str, weather: WeatherObservationInput) -> PredictionOutput:
-        # The model is intentionally untrained for now; this validates artifact wiring
-        # and emits a deterministic fallback probability.
-        self._ensure_model_artifact()
-        probability = self.default_probability
+    def predict(self, *, model_id: str, area_id: str, feature_row: dict[str, float]) -> PredictionOutput:
+        _ = area_id  # area_id is currently only used for logging/correlation at call sites.
+        _predicted_label, raw_probability = self.runtime.predict(model_id=model_id, feature_row=feature_row)
+        probability = 0.0 if raw_probability is None else min(max(raw_probability, 0.0), 1.0)
         return PredictionOutput(probability=probability, label=int(probability >= self.threshold))

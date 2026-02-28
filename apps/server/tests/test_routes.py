@@ -24,7 +24,7 @@ def test_stations_route_returns_expected_contract() -> None:
     session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
     with session_local() as db:  # type: Session
-        db.add(ModelRegistry(model_id="rf_baseline", name="RF", description="rf"))
+        db.add(ModelRegistry(model_id="rf_unbalanced", name="RF", description="rf"))
         station = Station(station_id="0007W", name="Montford Middle", lat=30.53, lon=-84.18)
         db.add(station)
         db.commit()
@@ -51,7 +51,7 @@ def test_stations_route_returns_expected_contract() -> None:
         db.add(
             ModelPrediction(
                 station_id=station.id,
-                model_id="rf_baseline",
+                model_id="rf_unbalanced",
                 predicted_at=now,
                 probability=0.2,
                 label=0,

@@ -15,7 +15,7 @@ def test_get_top_fire_areas_sorted_and_limited() -> None:
     session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
     with session_local() as db:  # type: Session
-        db.add(ModelRegistry(model_id="rf_baseline", name="RF", description="rf"))
+        db.add(ModelRegistry(model_id="rf_unbalanced", name="RF", description="rf"))
         db.add_all(
             [
                 Station(station_id="a", name="A", lat=1.0, lon=1.0),
@@ -33,28 +33,28 @@ def test_get_top_fire_areas_sorted_and_limited() -> None:
             [
                 ModelPrediction(
                     station_id=station_by_area["a"].id,
-                    model_id="rf_baseline",
+                    model_id="rf_unbalanced",
                     predicted_at=now - timedelta(seconds=10),
                     probability=0.45,
                     label=0,
                 ),
                 ModelPrediction(
                     station_id=station_by_area["a"].id,
-                    model_id="rf_baseline",
+                    model_id="rf_unbalanced",
                     predicted_at=now,
                     probability=0.65,
                     label=1,
                 ),
                 ModelPrediction(
                     station_id=station_by_area["b"].id,
-                    model_id="rf_baseline",
+                    model_id="rf_unbalanced",
                     predicted_at=now,
                     probability=0.9,
                     label=1,
                 ),
                 ModelPrediction(
                     station_id=station_by_area["c"].id,
-                    model_id="rf_baseline",
+                    model_id="rf_unbalanced",
                     predicted_at=now,
                     probability=0.2,
                     label=0,
@@ -63,7 +63,7 @@ def test_get_top_fire_areas_sorted_and_limited() -> None:
         )
         db.commit()
 
-        top_two = get_top_fire_areas(db, n=2, model_id="rf_baseline")
+        top_two = get_top_fire_areas(db, n=2, model_id="rf_unbalanced")
 
         assert len(top_two) == 2
         assert top_two[0][0].station_id == "b"

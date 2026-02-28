@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -14,6 +16,7 @@ from app.schemas.api import StationListItem, StationsResponse
 
 
 router = APIRouter(tags=["stations"])
+LOGGER = logging.getLogger(__name__)
 
 
 @router.get("/stations", response_model=StationsResponse)
@@ -23,6 +26,7 @@ def get_stations(
 ) -> StationsResponse:
     settings = get_settings()
     chosen_model = model_id or settings.default_model_id
+    LOGGER.debug("event=api.stations.request model_id=%s", chosen_model)
 
     stations = list_stations(db)
     items: list[StationListItem] = []
@@ -40,4 +44,10 @@ def get_stations(
             )
         )
 
+    LOGGER.debug(
+        "event=api.stations.response model_id=%s stations_scanned=%s rows_returned=%s",
+        chosen_model,
+        len(stations),
+        len(items),
+    )
     return StationsResponse(items=items)

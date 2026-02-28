@@ -7,7 +7,7 @@ from app.db.models import Base, ModelRegistry
 from app.services.models_registry import seed_models
 
 
-def test_seed_models_keeps_only_rf_baseline() -> None:
+def test_seed_models_replaces_with_supported_catalog_ids() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:", future=True)
     Base.metadata.create_all(engine)
     session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False)
@@ -19,5 +19,12 @@ def test_seed_models_keeps_only_rf_baseline() -> None:
 
         seed_models(db)
 
-        model_ids = list(db.execute(select(ModelRegistry.model_id)).scalars())
-        assert model_ids == ["rf_baseline"]
+        model_ids = sorted(list(db.execute(select(ModelRegistry.model_id)).scalars()))
+        assert model_ids == [
+            "nb_balanced",
+            "nb_unbalanced",
+            "rf_balanced",
+            "rf_unbalanced",
+            "xgb_balanced",
+            "xgb_unbalanced",
+        ]

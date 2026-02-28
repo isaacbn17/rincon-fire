@@ -48,11 +48,12 @@ Services:
 - `GET /api/v1/health`
 - `GET /api/v1/models`
 - `GET /api/v1/stations`
-- `GET /api/v1/fire-areas/top?n=5&model_id=rf_baseline`
+- `GET /api/v1/fire-areas/top?n=5&model_id=rf_unbalanced`
+- `GET /api/v1/fire-areas/compare?n=5`
 - `GET /api/v1/areas/{area_id}/weather/latest`
-- `GET /api/v1/areas/{area_id}/predictions/latest?model_id=rf_baseline`
+- `GET /api/v1/areas/{area_id}/predictions/latest?model_id=rf_unbalanced`
 - `GET /api/v1/areas/{area_id}/satellite/latest`
 - `GET /api/v1/location/weather/latest?lat=...&lon=...`
-- `GET /api/v1/location/predictions/latest?lat=...&lon=...&model_id=rf_baseline`
+- `GET /api/v1/location/predictions/latest?lat=...&lon=...&model_id=rf_unbalanced`
 - `GET /api/v1/location/satellite/latest?lat=...&lon=...`
 - `GET /api/v1/satellite/files/{filename}`

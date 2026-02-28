@@ -35,6 +35,25 @@ export type FireAreasTopResponse = {
   items: FireAreaTopItem[]
 }
 
+export type CompareAreaPrediction = {
+  model_id: string
+  probability: number | null
+  predicted_at: string | null
+}
+
+export type CompareAreaItem = {
+  area_id: string
+  name: string
+  lat: number
+  lon: number
+  predictions: CompareAreaPrediction[]
+}
+
+export type CompareFireAreasResponse = {
+  models: ModelInfo[]
+  items: CompareAreaItem[]
+}
+
 export type WeatherLatestResponse = {
   area_id: string
   observed_at: string

@@ -35,6 +35,7 @@ export function DashboardPage() {
   })
 
   const items = areasQuery.data?.items ?? []
+  const showEmptyState = Boolean(selectedModelId) && !areasQuery.isLoading && !areasQuery.error && items.length === 0
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 md:p-6">
@@ -55,9 +56,9 @@ export function DashboardPage() {
       </header>
 
       {areasQuery.error ? (
-        <Card>
+        <Card className="border-red-300 bg-white-100 dark:border-red-800 dark:bg-red-50">
           <CardHeader>
-            <CardTitle>Unable to Load Fire Areas</CardTitle>
+            <CardTitle>Unable to Load data for Fire Areas</CardTitle>
             <CardDescription>{String(areasQuery.error)}</CardDescription>
           </CardHeader>
         </Card>
@@ -70,7 +71,15 @@ export function DashboardPage() {
             <CardDescription>Marker color tracks model probability.</CardDescription>
           </CardHeader>
           <CardContent>
-            {areasQuery.isLoading && items.length === 0 ? <Skeleton className="h-[460px] w-full" /> : <FireRiskMap items={items} />}
+            {areasQuery.isLoading && items.length === 0 ? (
+              <Skeleton className="h-[460px] w-full" />
+            ) : showEmptyState ? (
+              <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                No predictions are available yet for the selected model. The worker may still be ingesting weather data.
+              </div>
+            ) : (
+              <FireRiskMap items={items} />
+            )}
           </CardContent>
         </Card>
 
@@ -87,6 +96,10 @@ export function DashboardPage() {
                 <Skeleton className="h-8 w-full" />
                 <Skeleton className="h-8 w-full" />
                 <Skeleton className="h-8 w-full" />
+              </div>
+            ) : showEmptyState ? (
+              <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                No ranked fire areas yet. Check worker logs for prediction generation and storage events.
               </div>
             ) : (
               <FireAreasTable items={items} />

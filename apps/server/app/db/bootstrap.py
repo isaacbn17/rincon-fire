@@ -25,7 +25,6 @@ def _ensure_station_active_column() -> None:
 def init_db(reset_db: bool) -> None:
     settings = get_settings()
     settings.satellite_dir.mkdir(parents=True, exist_ok=True)
-    settings.rf_model_path.parent.mkdir(parents=True, exist_ok=True)
 
     if reset_db:
         Base.metadata.drop_all(bind=engine)

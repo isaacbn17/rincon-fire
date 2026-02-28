@@ -34,6 +34,25 @@ class FireAreasTopResponse(BaseModel):
     items: list[FireAreaTopItem]
 
 
+class CompareAreaPrediction(BaseModel):
+    model_id: str
+    probability: float | None = Field(default=None, ge=0.0, le=1.0)
+    predicted_at: datetime | None
+
+
+class CompareAreaItem(BaseModel):
+    area_id: str
+    name: str
+    lat: float
+    lon: float
+    predictions: list[CompareAreaPrediction]
+
+
+class CompareFireAreasResponse(BaseModel):
+    models: list[ModelInfo]
+    items: list[CompareAreaItem]
+
+
 class WeatherLatestResponse(BaseModel):
     area_id: str
     observed_at: datetime

@@ -11,7 +11,7 @@ from app.schemas.api import PredictionLatestResponse
 def test_prediction_schema_validates_probability_range() -> None:
     PredictionLatestResponse(
         area_id="abc",
-        model_id="rf_baseline",
+        model_id="rf_unbalanced",
         predicted_at=datetime.now(timezone.utc),
         probability=0.8,
         label=1,
@@ -20,7 +20,7 @@ def test_prediction_schema_validates_probability_range() -> None:
     with pytest.raises(ValidationError):
         PredictionLatestResponse(
             area_id="abc",
-            model_id="rf_baseline",
+            model_id="rf_unbalanced",
             predicted_at=datetime.now(timezone.utc),
             probability=1.5,
             label=1,

@@ -1,5 +1,4 @@
 import os
-import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -8,10 +7,6 @@ import joblib
 
 from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score
-
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.append(str(ROOT))
-from src.api_helpers import get_formatted_weather_data
 
 
 class WildfireXGBoostModel:
@@ -107,13 +102,35 @@ class WildfireXGBoostModel:
     # -------------------------
     # PREDICT
     # -------------------------
-    def predict(self):
+    def predict(self, feature_row: dict):
+        if self.feature_columns is None:
+            raise RuntimeError("Model has not been trained/loaded (feature_columns is None).")
+
+        df = pd.DataFrame([feature_row])
+        for col in self.feature_columns:
+            if col not in df.columns:
+                df[col] = 0
+        df = df[self.feature_columns]
+        df = df.apply(pd.to_numeric, errors="coerce").fillna(0)
+
+        prediction = int(self.model.predict(df)[0])
+        probability = float(self.model.predict_proba(df)[0][1])
+        return prediction, probability
+
+    def predict_all_stations(self):
         # Ensure model is loaded
         if self.feature_columns is None:
             raise RuntimeError("Model has not been trained/loaded (feature_columns is None).")
-        
+        # Local import keeps runtime model loading free of the batch-prediction dependency path.
+        import sys
+
+        root = Path(__file__).resolve().parents[2]
+        if str(root) not in sys.path:
+            sys.path.append(str(root))
+        from src.api_helpers import get_formatted_weather_data
+
         print("Loading weather stations for prediction...\n")
-        weather_stations_path = "..\weather_stations_utah_valid.csv"
+        weather_stations_path = "../weather_stations_utah_valid.csv"
         weather_stations_df = pd.read_csv(weather_stations_path)
 
         results = []
@@ -152,8 +169,6 @@ class WildfireXGBoostModel:
             })
 
             count += 1
-            # if count >= 5:
-            #     break
 
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         output_path = Path(f"../model_predictions/fire_predictions_{date_str}.csv")
@@ -204,7 +219,7 @@ if __name__ == "__main__":
     model.load("unbalanced_xgb_model.joblib")
 
     start = time.perf_counter()
-    model.predict()
+    model.predict_all_stations()
     end = time.perf_counter()
     print(f"Execution time: {end - start:.6f} seconds")
 

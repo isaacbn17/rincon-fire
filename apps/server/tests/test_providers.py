@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import joblib
-from sklearn.ensemble import RandomForestClassifier
-
-from app.providers.predictor import RandomForestFallbackPredictionProvider
+from app.providers.predictor import MultiModelPredictionProvider
 from app.providers.weather import NoaaWeatherProvider, NwsLatestObservation, to_weather_input
 
 
@@ -23,23 +20,41 @@ class _FakeSession:
     def __init__(self, responses: list[_FakeResponse]):
         self.responses = responses
         self.calls = 0
+        self.request_kwargs: list[dict] = []
 
     def get(self, *args, **kwargs):  # noqa: ANN002, ANN003
+        self.request_kwargs.append(kwargs)
         response = self.responses[min(self.calls, len(self.responses) - 1)]
         self.calls += 1
         return response
 
 
-def _sample_payload() -> dict:
+class _FakeRuntime:
+    def __init__(self, model_ids: list[str], probability: float):
+        self.model_ids = model_ids
+        self.probability = probability
+        self.predict_calls: list[tuple[str, dict[str, float]]] = []
+
+    def available_model_ids(self) -> list[str]:
+        return self.model_ids
+
+    def predict(self, *, model_id: str, feature_row: dict[str, float]) -> tuple[int, float]:
+        self.predict_calls.append((model_id, feature_row))
+        return 1, self.probability
+
+
+def _sample_payload(*, observed_at: datetime | None = None) -> dict:
+    ts = observed_at or datetime(2026, 2, 21, 18, 30, tzinfo=timezone.utc)
+    iso = ts.isoformat().replace("+00:00", "+00:00")
     return {
-        "id": "https://api.weather.gov/stations/0007W/observations/2026-02-21T18:30:00+00:00",
+        "id": f"https://api.weather.gov/stations/0007W/observations/{iso}",
         "type": "Feature",
         "geometry": {"type": "Point", "coordinates": [-84.18, 30.53]},
         "properties": {
-            "@id": "https://api.weather.gov/stations/0007W/observations/2026-02-21T18:30:00+00:00",
+            "@id": f"https://api.weather.gov/stations/0007W/observations/{iso}",
             "stationId": "0007W",
             "stationName": "Montford Middle",
-            "timestamp": "2026-02-21T18:30:00+00:00",
+            "timestamp": iso,
             "elevation": {"unitCode": "wmoUnit:m", "value": 49.1},
             "temperature": {"unitCode": "wmoUnit:degC", "value": 26.44, "qualityControl": "V"},
             "dewpoint": {"unitCode": "wmoUnit:degC", "value": 21.58, "qualityControl": "V"},
@@ -110,20 +125,58 @@ def test_noaa_provider_returns_status_after_retry_exhaustion() -> None:
     assert session.calls == 2
 
 
-def test_rf_fallback_predictor_uses_fixed_probability(tmp_path: Path) -> None:
-    model_path = tmp_path / "rf.joblib"
-    joblib.dump(RandomForestClassifier(n_estimators=10, random_state=42), model_path)
-
-    predictor = RandomForestFallbackPredictionProvider(
-        model_path=model_path,
-        default_probability=0.2,
-        threshold=0.5,
+def test_noaa_provider_recent_observations_collects_one_per_day() -> None:
+    base = datetime(2026, 2, 21, 18, 30, tzinfo=timezone.utc)
+    features = []
+    for day in range(5):
+        features.append(_sample_payload(observed_at=base - timedelta(days=day)))
+    payload = {"type": "FeatureCollection", "features": features}
+    session = _FakeSession([_FakeResponse(200, payload)])
+    provider = NoaaWeatherProvider(
+        base_url="https://api.weather.gov",
+        user_agent="test",
+        session=session,
+        max_retries=1,
     )
-    weather = to_weather_input(NwsLatestObservation.model_validate(_sample_payload()))
 
-    first = predictor.predict(model_id="rf_baseline", area_id="0007W", weather=weather)
-    second = predictor.predict(model_id="rf_baseline", area_id="0007W", weather=weather)
+    observations = provider.get_recent_observations(station_id="0007W", days=4)
 
-    assert first == second
-    assert first.probability == 0.2
-    assert first.label == 0
+    assert observations is not None
+    assert not isinstance(observations, int)
+    assert len(observations) == 4
+    assert observations[0].observed_at < observations[-1].observed_at
+    assert session.request_kwargs[0]["params"] == {"limit": "500"}
+
+
+def test_noaa_provider_recent_observations_returns_status_for_400() -> None:
+    session = _FakeSession([_FakeResponse(400, {"title": "Bad Request"})])
+    provider = NoaaWeatherProvider(
+        base_url="https://api.weather.gov",
+        user_agent="test",
+        session=session,
+        max_retries=1,
+    )
+
+    observations = provider.get_recent_observations(station_id="0007W", days=7)
+
+    assert observations == 400
+
+
+def test_multi_model_predictor_uses_runtime_and_threshold() -> None:
+    runtime = _FakeRuntime(model_ids=["rf_unbalanced", "xgb_unbalanced"], probability=0.74)
+    predictor = MultiModelPredictionProvider(
+        model_artifact_dir=Path("."),
+        enabled_model_ids=["rf_unbalanced"],
+        threshold=0.5,
+        runtime=runtime,  # type: ignore[arg-type]
+    )
+    row = {"temperature_1": 10.0}
+
+    first = predictor.predict(model_id="rf_unbalanced", area_id="0007W", feature_row=row)
+    second = predictor.predict(model_id="xgb_unbalanced", area_id="0007W", feature_row=row)
+
+    assert predictor.available_model_ids() == ["rf_unbalanced", "xgb_unbalanced"]
+    assert first.probability == 0.74
+    assert first.label == 1
+    assert second.probability == 0.74
+    assert len(runtime.predict_calls) == 2

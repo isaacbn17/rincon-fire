@@ -1,4 +1,5 @@
 import type {
+  CompareFireAreasResponse,
   FireAreasTopResponse,
   ModelsResponse,
   PredictionLatestResponse,
@@ -38,6 +39,11 @@ export function getTopFireAreas(params: { n?: number; modelId?: string }) {
     query.set("model_id", params.modelId)
   }
   return apiGet<FireAreasTopResponse>(`/api/v1/fire-areas/top?${query.toString()}`)
+}
+
+export function getCompareFireAreas(params?: { n?: number }) {
+  const query = new URLSearchParams({ n: String(params?.n ?? 5) })
+  return apiGet<CompareFireAreasResponse>(`/api/v1/fire-areas/compare?${query.toString()}`)
 }
 
 export function getLatestWeather(areaId: string) {
