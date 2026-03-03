@@ -1,0 +1,2 @@
+station_url,latitude,longitude,timestamp,fire_probability
+not_a_station,28.6434, 77.0588,2026-02-27T22:15:34.140714+00:00,0.08

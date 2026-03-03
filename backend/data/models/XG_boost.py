@@ -113,7 +113,7 @@ class WildfireXGBoostModel:
             raise RuntimeError("Model has not been trained/loaded (feature_columns is None).")
         
         print("Loading weather stations for prediction...\n")
-        weather_stations_path = "..\updated_utah_valid_weather_stations.csv"
+        weather_stations_path = "updated_utah_valid_weather_stations.csv"
         weather_stations_df = pd.read_csv(weather_stations_path)
 
         results = []
@@ -125,7 +125,7 @@ class WildfireXGBoostModel:
             latitude = row["latitude"]
             longitude = row["longitude"]
 
-            print(f"{count}/1257 Processing station: {station}")
+            print(f"{count}/1032 Processing station: {station}")
 
             try:
                 formatted_weather_df = get_formatted_weather_data(station)
@@ -152,16 +152,21 @@ class WildfireXGBoostModel:
             })
 
             count += 1
-            # if count >= 5:
-            #     break
+            if count > 10:
+                break
 
-        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        output_path = Path(f"../model_predictions/fire_predictions_{date_str}.csv")
+        now = datetime.now(timezone.utc)
+        date_str = now.strftime("%Y-%m-%d_%H")
+        output_path = Path(f"model_predictions/fire_predictions_{date_str}.csv")
 
         results_df = pd.DataFrame(results, columns=["station_url", "latitude", "longitude", "timestamp", "fire_probability"])
+        
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         results_df.to_csv(output_path, index=False)
 
         print(f"\nSaved predictions to {output_path.resolve()}")
+        
+        return str(output_path)
 
     # -------------------------
     # SAVE MODEL
@@ -204,7 +209,7 @@ if __name__ == "__main__":
     model.load("unbalanced_xgb_model.joblib")
 
     start = time.perf_counter()
-    model.predict()
+    output_path = model.predict()
     end = time.perf_counter()
     print(f"Execution time: {end - start:.6f} seconds")
 
