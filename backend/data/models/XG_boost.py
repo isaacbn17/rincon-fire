@@ -113,7 +113,7 @@ class WildfireXGBoostModel:
             raise RuntimeError("Model has not been trained/loaded (feature_columns is None).")
         
         print("Loading weather stations for prediction...\n")
-        weather_stations_path = "../updated_utah_valid_weather_stations.csv"
+        weather_stations_path = "updated_utah_valid_weather_stations.csv"
         weather_stations_df = pd.read_csv(weather_stations_path)
 
         results = []
@@ -152,8 +152,8 @@ class WildfireXGBoostModel:
             })
 
             count += 1
-            if count > 10:
-                break
+            # if count > 5:
+            #     break
 
         now = datetime.now(timezone.utc)
         date_str = now.strftime("%Y-%m-%d_%H")
@@ -200,7 +200,6 @@ class WildfireXGBoostModel:
         data = joblib.load(path)
         self.model = data["model"]
         self.feature_columns = data["features"]
-        print("Model loaded.")
 
 
 if __name__ == "__main__":

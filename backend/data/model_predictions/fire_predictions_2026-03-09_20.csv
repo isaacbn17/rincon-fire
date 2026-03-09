@@ -1,0 +1,3 @@
+station_url,latitude,longitude,timestamp,fire_probability
+https://api.weather.gov/stations/AGD,40.5905,-111.638,2026-03-09T20:36:53.690320+00:00,0.005133346188813448
+https://api.weather.gov/stations/ALTU1,37.4402,-112.4819,2026-03-09T20:37:19.787926+00:00,0.02536250464618206

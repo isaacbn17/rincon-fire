@@ -7,6 +7,7 @@ from satellite_images.satellite_images import SatelliteManager
 
 if __name__ == "__main__":
     # 1. Initialize and Load Model
+    print("Loading model...")
     model = WildfireXGBoostModel()
     model.load("models/unbalanced_xgb_model.joblib")
 
@@ -32,6 +33,6 @@ if __name__ == "__main__":
             fmt='png'
         )
         
-        manager.run(number_of_images=4)
+        manager.run(number_of_images=20)
     else:
         print("Prediction failed to return a valid file path.")
