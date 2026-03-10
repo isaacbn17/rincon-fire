@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import datetime
 
 USER_AGENT = "RinconFire/1.0 (contact: user)"  # set a real contact if you can
-DEFAULT_TIMEOUT = 15  # seconds
+DEFAULT_TIMEOUT = 5  # seconds
 BASE = "https://api.weather.gov"
 
 def _get(url: str, *, headers: Optional[Dict[str, str]] = None, params: Optional[Dict[str, Any]] = None,

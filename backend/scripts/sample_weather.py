@@ -5,7 +5,7 @@ import requests
 
 
 USER_AGENT = "RinconFire/1.0 (contact: youremail@example.com)"  # set a real contact if you can
-DEFAULT_TIMEOUT = 15  # seconds
+DEFAULT_TIMEOUT = 5  # seconds
 BASE = "https://api.weather.gov"
 # WEATHER_STATIONS_CSV = Config().STATIONS_DIR
 
