@@ -134,11 +134,11 @@ class WildfireRFModel:
     # -------------------------
     # LOAD MODEL
     # -------------------------
-    def load(self, path="wildfire_rf_model.joblib"):
+    def load(self, path="rf_model.joblib"):
         data = joblib.load(path)
         self.model = data["model"]
         self.feature_columns = data["features"]
-        print("Model loaded.")
+        print(f"Model loaded from {path}.")
 
 
 # -------------------------------------------------

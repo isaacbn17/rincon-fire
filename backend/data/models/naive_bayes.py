@@ -110,7 +110,7 @@ class WildfireNBModel:
     # -------------------------
     # LOAD MODEL
     # -------------------------
-    def load(self, path="wildfire_nb_model.joblib"):
+    def load(self, path="unbalanced_nb_model.joblib"):
         data = joblib.load(path)
         self.model = data["model"]
         self.feature_columns = data["features"]
