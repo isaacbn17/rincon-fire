@@ -33,6 +33,6 @@ if __name__ == "__main__":
             fmt='png'
         )
         
-        manager.run(number_of_images=20)
+        manager.run(number_of_images=10)
     else:
         print("Prediction failed to return a valid file path.")

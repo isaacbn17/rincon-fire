@@ -152,8 +152,8 @@ class WildfireXGBoostModel:
             })
 
             count += 1
-            if count > 5:
-                break
+            # if count > 5:
+            #     break
 
         now = datetime.now(timezone.utc)
         date_str = now.strftime("%Y-%m-%d_%H")
