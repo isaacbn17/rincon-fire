@@ -25,7 +25,7 @@ try:
     # from src.rf_baseline import predict_fire_risk, get_trained_model
     from src.highsight import get_satellite_image
     try:
-        from data.database_manager import DatabaseManager
+        from backend.data.archive.database_manager import DatabaseManager
     except Exception as e:
         print(f"Warning: database disabled because DatabaseManager could not be imported: {e}")
         DatabaseManager = None
@@ -39,7 +39,7 @@ except (ModuleNotFoundError, ImportError):
     from rf_baseline import predict_fire_risk, get_trained_model
     from highsight import get_satellite_image
     try:
-        from data.database_manager import DatabaseManager
+        from backend.data.archive.database_manager import DatabaseManager
     except Exception as e:
         print(f"Warning: database disabled because DatabaseManager could not be imported: {e}")
         DatabaseManager = None

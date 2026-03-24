@@ -16,7 +16,7 @@ def plot_weather_stations(csv_path):
 
     # Plot
     plt.figure()
-    plt.scatter(longitudes, latitudes)
+    plt.scatter(longitudes, latitudes, s=5)
 
     # Label axes
     plt.xlabel("Longitude")
@@ -29,4 +29,5 @@ def plot_weather_stations(csv_path):
     plt.show()
 
 
-plot_weather_stations("weather_stations_utah_valid.csv")
+# plot_weather_stations("updated_utah_valid_weather_stations.csv")
+plot_weather_stations("utah_weather_stations_filtered_12km.csv")
