@@ -113,7 +113,7 @@ class WildfireXGBoostModel:
             raise RuntimeError("Model has not been trained/loaded (feature_columns is None).")
         
         print("Loading weather stations for prediction...\n")
-        weather_stations_path = "updated_utah_valid_weather_stations.csv"
+        weather_stations_path = "utah_weather_stations_filtered_12km.csv"
         weather_stations_df = pd.read_csv(weather_stations_path)
 
         results = []
@@ -125,7 +125,7 @@ class WildfireXGBoostModel:
             latitude = row["latitude"]
             longitude = row["longitude"]
 
-            print(f"{count}/1032 Processing station: {station}")
+            print(f"{count}/330 Processing station: {station}")
 
             try:
                 formatted_weather_df = get_formatted_weather_data(station)
@@ -152,12 +152,12 @@ class WildfireXGBoostModel:
             })
 
             count += 1
-            # if count > 5:
-            #     break
+            if count > 5:
+                break
 
         now = datetime.now(timezone.utc)
         date_str = now.strftime("%Y-%m-%d_%H")
-        output_path = Path(f"model_predictions/fire_predictions_{date_str}.csv")
+        output_path = Path(f"model_predictions/{date_str}.csv")
 
         results_df = pd.DataFrame(results, columns=["station_url", "latitude", "longitude", "timestamp", "fire_probability"])
         

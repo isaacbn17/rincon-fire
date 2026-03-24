@@ -1,0 +1,84 @@
+from pathlib import Path
+import pandas as pd
+
+
+# ---------------------------------
+# CONFIG
+# ---------------------------------
+BASE_DIR = Path(__file__).resolve().parent
+PREDICTIONS_DIR = BASE_DIR
+FILTERED_STATIONS_CSV = BASE_DIR.parent / "utah_weather_stations_filtered_12km.csv"
+OUTPUT_SUFFIX = "_filtered.csv"
+
+
+def load_filtered_station_urls(filtered_stations_csv: Path) -> set[str]:
+    df = pd.read_csv(filtered_stations_csv)
+
+    if "station_url" not in df.columns:
+        raise ValueError(f"'station_url' column not found in {filtered_stations_csv}")
+
+    return set(df["station_url"].dropna().astype(str).str.strip())
+
+
+def extract_date_from_prediction_filename(filename: str) -> str | None:
+    """
+    Example:
+        fire_predictions_2026-02-27.csv -> 2026-02-27
+    """
+    prefix = "fire_predictions_"
+    suffix = ".csv"
+
+    if filename.startswith(prefix) and filename.endswith(suffix):
+        return filename[len(prefix):-len(suffix)]
+    return None
+
+
+def filter_prediction_file(csv_path: Path, allowed_station_urls: set[str]) -> Path | None:
+    df = pd.read_csv(csv_path)
+
+    if "station_url" not in df.columns:
+        print(f"Skipping {csv_path.name}: no 'station_url' column")
+        return None
+
+    df["station_url"] = df["station_url"].astype(str).str.strip()
+
+    filtered_df = df[df["station_url"].isin(allowed_station_urls)].copy()
+
+    date_part = extract_date_from_prediction_filename(csv_path.name)
+    if date_part is None:
+        print(f"Skipping {csv_path.name}: filename does not match expected pattern")
+        return None
+
+    output_path = csv_path.parent / f"{date_part}{OUTPUT_SUFFIX}"
+    filtered_df.to_csv(output_path, index=False)
+
+    print(
+        f"Processed {csv_path.name}: "
+        f"{len(df)} rows -> {len(filtered_df)} rows, "
+        f"saved to {output_path.name}"
+    )
+
+    return output_path
+
+
+def main():
+    if not PREDICTIONS_DIR.exists():
+        raise FileNotFoundError(f"Predictions directory not found: {PREDICTIONS_DIR}")
+
+    if not FILTERED_STATIONS_CSV.exists():
+        raise FileNotFoundError(f"Filtered stations CSV not found: {FILTERED_STATIONS_CSV}")
+
+    allowed_station_urls = load_filtered_station_urls(FILTERED_STATIONS_CSV)
+
+    prediction_files = sorted(PREDICTIONS_DIR.glob("fire_predictions_*.csv"))
+
+    if not prediction_files:
+        print(f"No prediction files found in {PREDICTIONS_DIR}")
+        return
+
+    for csv_path in prediction_files:
+        filter_prediction_file(csv_path, allowed_station_urls)
+
+
+if __name__ == "__main__":
+    main()

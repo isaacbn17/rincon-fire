@@ -103,6 +103,7 @@ def plot_fire_heatmap(csv_path, output_path=None, grid_size=500, sigma=4.0, meth
         s=12,
         edgecolors="black",
         linewidths=0.3,
+        color='black'
     )
 
     # Draw border for clarity
