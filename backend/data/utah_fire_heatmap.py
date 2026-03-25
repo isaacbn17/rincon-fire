@@ -8,7 +8,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.path import Path as MplPath
 from scipy.interpolate import griddata
 from scipy.ndimage import gaussian_filter
-
+from datetime import date
 
 # Approximate Utah border in lon/lat.
 # This removes the northeast rectangle above 41°N and east of ~111.05°W.
@@ -114,7 +114,8 @@ def plot_fire_heatmap(csv_path, output_path=None, grid_size=500, sigma=4.0, meth
     plt.ylim(UTAH_LAT_MIN, UTAH_LAT_MAX)
     plt.xlabel("Longitude")
     plt.ylabel("Latitude")
-    plt.title("Utah Wildfire Prediction Heat Map")
+    today = date.today()
+    plt.title(f"Utah Wildfire Prediction Heat Map {today}")
     plt.tight_layout()
 
     if output_path:
