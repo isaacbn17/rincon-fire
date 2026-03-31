@@ -21,7 +21,7 @@ def plot_weather_stations(csv_path):
     # Label axes
     plt.xlabel("Longitude")
     plt.ylabel("Latitude")
-    plt.title("Weather Station Locations")
+    plt.title("Filtered Weather Station Locations")
 
     # Improve readability
     plt.grid(True)

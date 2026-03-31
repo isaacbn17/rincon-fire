@@ -105,22 +105,22 @@ def evaluate_model(model_wrapper, model_name: str, df: pd.DataFrame, threshold: 
     plt.plot(recall, precision)
     plt.xlabel("Recall")
     plt.ylabel("Precision")
-    plt.title("Unbalanced Naive Bayes Precision-Recall Curve")
+    plt.title("Unbalanced XGBoost Precision-Recall Curve")
     plt.show()
 
 
 if __name__ == "__main__":
     df = load_test_data(TEST_CSV_PATH, TARGET_COL)
 
-    # xgb_model = WildfireXGBoostModel()
-    # xgb_model.load(XGB_MODEL_PATH)
+    xgb_model = WildfireXGBoostModel()
+    xgb_model.load(XGB_MODEL_PATH)
 
     # rf_model = WildfireRFModel()
     # rf_model.load(RF_MODEL_PATH)
 
-    nb_model = WildfireNBModel()
-    nb_model.load(NB_MODEL_PATH)
+    # nb_model = WildfireNBModel()
+    # nb_model.load(NB_MODEL_PATH)
 
-    # evaluate_model(xgb_model, "XGBoost", df, threshold=THRESHOLD)
+    evaluate_model(xgb_model, "XGBoost", df, threshold=THRESHOLD)
     # evaluate_model(rf_model, "Random Forest", df, threshold=THRESHOLD)
-    evaluate_model(nb_model, "Naive Bayes", df, threshold=THRESHOLD)
+    # evaluate_model(nb_model, "Naive Bayes", df, threshold=THRESHOLD)
